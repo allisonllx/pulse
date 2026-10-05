@@ -1,1 +1,34 @@
-{"clusterVersion":"d2b9c35907da4c6e","countries":["AU","BR","CA","DE","FR","GB","ID","IN","JP","KR","MX","MY","SE","SG","US"],"coverage":{"failed":103,"successful":215},"datasetVersion":"863f8b01287647fabfa0097d","generatedAt":"2026-10-05T08:02:19.162728Z","mode":"recording","recordingUrl":"/data/863f8b01287647fabfa0097d/recording.json","schemaVersion":1,"windows":["2026-10-05T00:00:00Z","2026-10-05T06:00:00Z"]}
+{
+  "clusterVersion": "d2b9c35907da4c6e",
+  "countries": [
+    "AU",
+    "BR",
+    "CA",
+    "DE",
+    "FR",
+    "GB",
+    "ID",
+    "IN",
+    "JP",
+    "KR",
+    "MX",
+    "MY",
+    "SE",
+    "SG",
+    "US"
+  ],
+  "coverage": {
+    "successful": 215,
+    "failed": 178
+  },
+  "datasetVersion": "18ad3ebb6142df49ff679722",
+  "generatedAt": "2026-10-05T12:06:44.227201Z",
+  "mode": "recording",
+  "recordingUrl": "/data/18ad3ebb6142df49ff679722/recording.json",
+  "schemaVersion": 1,
+  "windows": [
+    "2026-10-05T00:00:00Z",
+    "2026-10-05T06:00:00Z",
+    "2026-10-05T12:00:00Z"
+  ]
+}
