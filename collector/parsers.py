@@ -36,6 +36,18 @@ def parse(raw, job, observed_at=None):
         for node in root.findall(".//item"):
             candidates.append((node.findtext("title", ""),node.findtext("link", ""),BeautifulSoup(node.findtext("description", ""),"html.parser").get_text(" ",strip=True)))
     elif job.source == "youtube":
+        data=extract_json(text)
+        if job.surface=='discovery_week_popular':
+            selected=set()
+            def filters(value):
+                if isinstance(value,dict):
+                    f=value.get('searchFilterRenderer',{})
+                    if f.get('status')=='FILTER_STATUS_SELECTED':selected.add(f.get('label',{}).get('simpleText',''))
+                    for child in value.values():filters(child)
+                elif isinstance(value,list):
+                    for child in value:filters(child)
+            filters(data)
+            if not {'This week','Popularity'}<=selected:return []
         def walk(obj,section=""):
             if isinstance(obj,dict):
                 shelf=obj.get('shelfRenderer')
@@ -43,12 +55,18 @@ def parse(raw, job, observed_at=None):
                 video = obj.get("videoRenderer") or obj.get('gridVideoRenderer')
                 if video and video.get("videoId"):
                     title = "".join(x.get("text","") for x in video.get("title",{}).get("runs",[])) or video.get("title",{}).get("simpleText","")
-                    candidates.append((title,"https://www.youtube.com/watch?v="+video["videoId"],("Shelf: "+section+"; sampled page order") if section else ""))
+                    def label(field):
+                        value=video.get(field,{})
+                        return value.get('simpleText','') or ''.join(x.get('text','') for x in value.get('runs',[]))
+                    details=[('Shelf: '+section+'; sampled page order') if section else '']
+                    if label('publishedTimeText'):details.append('Uploaded: '+label('publishedTimeText'))
+                    if label('viewCountText'):details.append('Platform-wide views: '+label('viewCountText'))
+                    candidates.append((title,"https://www.youtube.com/watch?v="+video["videoId"],'; '.join(x for x in details if x)))
                 for v in obj.values():
                     walk(v,section)
             elif isinstance(obj,list):
                 for v in obj: walk(v,section)
-        walk(extract_json(text))
+        walk(data)
     else:
         soup = BeautifulSoup(text,"html.parser")
         if job.source == "google_news":

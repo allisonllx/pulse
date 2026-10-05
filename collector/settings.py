@@ -16,14 +16,14 @@ COUNTRIES = {
 PILOT = ["SG", "US", "GB", "JP", "IN", "BR"]
 EXPANSION = [c for c in COUNTRIES if c not in PILOT]
 QUERIES = ["AI agents", "AI coding tools", "latest AI models", "music", "gaming"]
-EXTRACTION_VERSION = "worldview-extract-4"
+EXTRACTION_VERSION = "worldview-extract-5"
 CAPABILITIES = {
  "bing": {"surfaces": ["search_html"], "profile": "english", "adapter": "http"},
  "reddit": {"surfaces": ["popular_ip_control"], "profile": "english", "adapter": "http"},
  "instagram": {"surfaces": ["public_keyword_probe"], "profile": "english", "adapter": "http", "max_jobs": 1},
  "google_news": {"surfaces": ["local_rss", "local_html"], "profile": "local", "adapter": "http"},
  "google_search": {"surfaces": ["search_html"], "profile": "english", "adapter": "http"},
- "youtube": {"surfaces": ["search_html","gaming_discovery"], "profile": "english", "adapter": "http"},
+ "youtube": {"surfaces": ["search_html","gaming_discovery","discovery_week_popular"], "profile": "english", "adapter": "http"},
  "tiktok": {"surfaces": ["bounded_probe"], "profile": "english", "adapter": "playwright", "max_jobs": 1}}
 
 @dataclass

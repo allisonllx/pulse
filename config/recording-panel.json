@@ -34,7 +34,8 @@
     "sources": [
       "youtube"
     ],
-    "profile": "english"
+    "profile": "english",
+    "querySet": "discovery-v1"
   },
   {
     "countries": [
@@ -61,10 +62,8 @@
       "youtube"
     ],
     "profile": "english",
-    "queries": [
-      "music",
-      "gaming"
-    ]
+    "querySet": "discovery-v1",
+    "queryLimit": 2
   },
   {
     "countries": [

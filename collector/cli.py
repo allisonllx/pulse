@@ -138,10 +138,14 @@ def main(argv=None):
                         jobs=[]
                         panel_adapters={}
                         for panel in panels:
-                            panel_jobs=plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface,youtube_surface=panel.get('youtubeSurface','search_html'))
+                            panel_jobs=plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface,youtube_surface=panel.get('youtubeSurface','search_html'),query_set=panel.get('querySet'))
                             if 'queries' in panel:
                                 if not isinstance(panel['queries'],list) or any(q not in QUERIES for q in panel['queries']):raise ValueError('Invalid panel queries')
                                 panel_jobs=[j for j in panel_jobs if j.query is None or j.query in panel['queries']]
+                            if 'queryLimit' in panel:
+                                if type(panel['queryLimit']) is not int or not 1<=panel['queryLimit']<=5:raise ValueError('Invalid query limit')
+                                allowed=set(j.query for j in panel_jobs[:panel['queryLimit']])
+                                panel_jobs=[j for j in panel_jobs if j.query in allowed]
                             if panel.get('adapter'):
                                 if panel['adapter'] not in {'http','playwright','auto'}:raise ValueError('Invalid panel adapter')
                                 panel_adapters.update({j.id:panel['adapter'] for j in panel_jobs})

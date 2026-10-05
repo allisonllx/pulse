@@ -34,13 +34,16 @@ class Job:
     def settings(self):
         settings={"hl": self.language, "gl": None if self.source in {"instagram","tiktok","bing","reddit"} else self.country if self.profile == "local" else "US",
                 "acceptLanguage": self.language, "loggedIn": False, "personalization": False}
+        if self.surface=='discovery_week_popular':settings['uploadDateFilter']='this_week';settings['sort']='platform_popularity';settings['querySet']='discovery-v1'
         if self.source=='tiktok' and self.surface.startswith('creative_center'):
             from urllib.parse import urlsplit,parse_qs
             settings['platformRegion']=parse_qs(urlsplit(self.url).query).get('region',[None])[0]
         return settings
 
 
-def plan(countries, sources, window=None, profile="all", news_surface="local_rss",youtube_surface="search_html"):
+def plan(countries, sources, window=None, profile="all", news_surface="local_rss",youtube_surface="search_html",query_set=None):
+    if query_set not in {None,'discovery-v1'}:raise ValueError('Unknown query set')
+    if query_set=='discovery-v1' and any(source!='youtube' for source in sources):raise ValueError('Discovery query set is currently validated for YouTube only')
     if news_surface not in ("local_rss", "local_html"):
         raise ValueError("News surface must be local_rss or local_html")
     jobs = []
@@ -55,6 +58,9 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
                 continue
             lang = COUNTRIES[country][2] if source_profile == "local" else "en"
             queries = [None] if source in {"google_news","reddit"} or (source=="youtube" and youtube_surface=="gaming_discovery") else QUERIES
+            if query_set=='discovery-v1' and source in {'bing','youtube'} and queries!=[None]:
+                from .discovery import discovery_queries
+                queries=discovery_queries(window or window_at(),source)
             if source in {"tiktok","instagram"}:
                 # Experimental capability is a single bounded probe per invocation.
                 if any(j.source == source for j in jobs):
@@ -62,6 +68,7 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
                 queries = [QUERIES[0]]
             for query in queries:
                 surface = news_surface if source == "google_news" else youtube_surface if source=="youtube" else CAPABILITIES[source]["surfaces"][0]
+                if query_set=='discovery-v1' and source in {'bing','youtube'} and query is not None:surface='discovery_week_popular' if source=='youtube' else 'discovery_search'
                 if source == "google_news":
                     url = "https://news.google.com/" + ("rss?" if surface == "local_rss" else "?") + urlencode({"hl":lang, "gl":country, "ceid":country+":"+lang})
                 elif source == "google_search":
@@ -76,6 +83,7 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
                     url = 'https://www.reddit.com/r/popular/'
                 else:
                     url = "https://www.tiktok.com/search?" + urlencode({"q":query, "lang":"en"})
+                if source=='youtube' and surface=='discovery_week_popular':url+='&'+urlencode({'sp':'CAMSAggD'})
                 jobs.append(Job(country, window or window_at(), source_profile, source, surface, query, url, lang, CAPABILITIES[source]["adapter"]))
     return jobs
 

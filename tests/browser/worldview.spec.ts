@@ -60,7 +60,9 @@ test('published pilot opens real evidence and reconciles visitors',async({page})
   await expect(page.locator('.evidence-item a').first()).toHaveAttribute('href',/^https:\/\//);
   await page.locator('#country').selectOption('DE');
   await page.getByRole('button',{name:'English control',exact:true}).click();
-  await expect(page.getByText('No observations in this view',{exact:false})).toBeVisible();
+  const german=recording.snapshots.find((s:any)=>s.country==='DE'&&s.profile==='english'&&s.window===recording.windows.at(-1));
+  await expect(page.locator('.topic-card')).toHaveCount(german.topics.length);
+  await expect(page.locator('.evidence-item a').first()).toHaveAttribute('href',/^https:\/\//);
 });
 
 test('shop focus has a clear exit and trends keep a topic across country navigation',async({page})=>{
