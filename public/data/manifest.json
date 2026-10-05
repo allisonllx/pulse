@@ -18,13 +18,13 @@
     "US"
   ],
   "coverage": {
-    "successful": 215,
-    "failed": 178
+    "successful": 285,
+    "failed": 108
   },
-  "datasetVersion": "18ad3ebb6142df49ff679722",
-  "generatedAt": "2026-10-05T12:06:44.227201Z",
+  "datasetVersion": "ef6ae08b860d5848845411ec",
+  "generatedAt": "2026-10-05T12:52:26.057908Z",
   "mode": "recording",
-  "recordingUrl": "/data/18ad3ebb6142df49ff679722/recording.json",
+  "recordingUrl": "/data/ef6ae08b860d5848845411ec/recording.json",
   "schemaVersion": 1,
   "windows": [
     "2026-10-05T00:00:00Z",
