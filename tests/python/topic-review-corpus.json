@@ -1,0 +1,252 @@
+[
+  {
+    "a": "OpenAI artificial intelligence update",
+    "b": "OpenAI inteligência artificial atualização",
+    "match": true
+  },
+  {
+    "a": "OpenAI artificial intelligence update",
+    "b": "OpenAI intelligence artificielle mise à jour",
+    "match": true
+  },
+  {
+    "a": "OpenAI artificial intelligence update",
+    "b": "OpenAI 人工知能 アップデート",
+    "match": true
+  },
+  {
+    "a": "Google technology update",
+    "b": "Google tecnologia atualização",
+    "match": true
+  },
+  {
+    "a": "Apple technology update",
+    "b": "Apple technologie mise à jour",
+    "match": true
+  },
+  {
+    "a": "Nintendo gaming update",
+    "b": "Nintendo ゲーム アップデート",
+    "match": true
+  },
+  {
+    "a": "Sony gaming update",
+    "b": "Sony jogos atualização",
+    "match": true
+  },
+  {
+    "a": "Swift music update",
+    "b": "Swift música atualização",
+    "match": true
+  },
+  {
+    "a": "Drake music update",
+    "b": "Drake musique mise à jour",
+    "match": true
+  },
+  {
+    "a": "Culture update",
+    "b": "Cultura atualização",
+    "match": true
+  },
+  {
+    "a": "Culture update",
+    "b": "文化 アップデート",
+    "match": true
+  },
+  {
+    "a": "Artificial intelligence update",
+    "b": "Künstliche Intelligenz update",
+    "match": true
+  },
+  {
+    "a": "Artificial intelligence update",
+    "b": "Kecerdasan buatan update",
+    "match": true
+  },
+  {
+    "a": "Artificial intelligence update",
+    "b": "인공지능 アップデート",
+    "match": true
+  },
+  {
+    "a": "Artificial intelligence update",
+    "b": "Inteligencia artificial actualización",
+    "match": true
+  },
+  {
+    "a": "OpenAI GPT 4 update",
+    "b": "OpenAI GPT 4 atualização",
+    "match": true
+  },
+  {
+    "a": "Google Gemini update",
+    "b": "Google Gemini atualização",
+    "match": true
+  },
+  {
+    "a": "Anthropic Claude update",
+    "b": "Anthropic Claude mise à jour",
+    "match": true
+  },
+  {
+    "a": "Microsoft technology update",
+    "b": "Microsoft tecnologia atualização",
+    "match": true
+  },
+  {
+    "a": "Nvidia technology update",
+    "b": "Nvidia technologie update",
+    "match": true
+  },
+  {
+    "a": "Beyoncé music update",
+    "b": "Beyoncé 音楽 アップデート",
+    "match": true
+  },
+  {
+    "a": "Tesla technology update",
+    "b": "Tesla technologie mise à jour",
+    "match": true
+  },
+  {
+    "a": "Samsung technology update",
+    "b": "Samsung tecnologia atualização",
+    "match": true
+  },
+  {
+    "a": "Meta Llama update",
+    "b": "Meta Llama atualização",
+    "match": true
+  },
+  {
+    "a": "YouTube culture update",
+    "b": "YouTube cultura atualização",
+    "match": true
+  },
+  {
+    "a": "Apple technology update",
+    "b": "Google technology update",
+    "match": false
+  },
+  {
+    "a": "OpenAI artificial intelligence update",
+    "b": "Anthropic artificial intelligence update",
+    "match": false
+  },
+  {
+    "a": "GPT 4 update",
+    "b": "GPT 5 update",
+    "match": false
+  },
+  {
+    "a": "Swift music update",
+    "b": "Drake music update",
+    "match": false
+  },
+  {
+    "a": "Nintendo gaming update",
+    "b": "Sony gaming update",
+    "match": false
+  },
+  {
+    "a": "Microsoft technology update",
+    "b": "Nvidia technology update",
+    "match": false
+  },
+  {
+    "a": "Meta Llama update",
+    "b": "Meta Gemini update",
+    "match": false
+  },
+  {
+    "a": "Samsung technology update",
+    "b": "Sony technology update",
+    "match": false
+  },
+  {
+    "a": "YouTube culture update",
+    "b": "TikTok culture update",
+    "match": false
+  },
+  {
+    "a": "Google artificial intelligence update",
+    "b": "Google gaming update",
+    "match": false
+  },
+  {
+    "a": "OpenAI launches ChatGPT",
+    "b": "OpenAI launches Claude",
+    "match": false
+  },
+  {
+    "a": "Apple iPhone 16 update",
+    "b": "Apple iPhone 17 update",
+    "match": false
+  },
+  {
+    "a": "Tesla technology update",
+    "b": "Meta technology update",
+    "match": false
+  },
+  {
+    "a": "Beyoncé music update",
+    "b": "Swift music update",
+    "match": false
+  },
+  {
+    "a": "Culture in Japan",
+    "b": "Culture in Brazil",
+    "match": false
+  },
+  {
+    "a": "Jordan Lee music release",
+    "b": "Jordan Lin music release",
+    "match": false
+  },
+  {
+    "a": "Taylor Swift album",
+    "b": "Taylor Smith album",
+    "match": false
+  },
+  {
+    "a": "Apollo 11 mission",
+    "b": "Apollo 12 mission",
+    "match": false
+  },
+  {
+    "a": "New York election",
+    "b": "New Delhi election",
+    "match": false
+  },
+  {
+    "a": "OpenAI GPT release",
+    "b": "OpenAI Llama release",
+    "match": false
+  },
+  {
+    "a": "Apple computer launch",
+    "b": "Apple orchard harvest",
+    "match": false
+  },
+  {
+    "a": "Earthquake Japan",
+    "b": "Election Japan",
+    "match": false
+  },
+  {
+    "a": "Drake music tour",
+    "b": "Drake software update",
+    "match": false
+  },
+  {
+    "a": "Nvidia earnings 2026",
+    "b": "Nvidia earnings 2025",
+    "match": false
+  },
+  {
+    "a": "Google Gemini update",
+    "b": "Google Chrome update",
+    "match": false
+  }
+]

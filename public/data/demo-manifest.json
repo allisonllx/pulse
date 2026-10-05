@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "demo-v1",
+  "generatedAt": "2026-10-06T18:00:00.000Z",
+  "mode": "demo",
+  "recordingUrl": "/data/demo-v1/recording.json",
+  "countries": [
+    "SG",
+    "US",
+    "GB",
+    "JP",
+    "IN",
+    "BR"
+  ],
+  "windows": [
+    "2026-10-05T00:00:00.000Z",
+    "2026-10-05T06:00:00.000Z",
+    "2026-10-05T12:00:00.000Z",
+    "2026-10-05T18:00:00.000Z",
+    "2026-10-06T00:00:00.000Z",
+    "2026-10-06T06:00:00.000Z",
+    "2026-10-06T12:00:00.000Z",
+    "2026-10-06T18:00:00.000Z"
+  ],
+  "clusterVersion": "demo-illustrative-v1",
+  "coverage": {
+    "successful": 666,
+    "failed": 6
+  }
+}

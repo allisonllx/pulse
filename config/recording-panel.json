@@ -1,0 +1,39 @@
+[
+  {
+    "countries": [
+      "SG",
+      "US",
+      "GB",
+      "JP",
+      "IN",
+      "BR",
+      "SE",
+      "DE",
+      "FR",
+      "KR",
+      "ID",
+      "MY",
+      "AU",
+      "CA",
+      "MX"
+    ],
+    "sources": [
+      "google_news"
+    ],
+    "profile": "local"
+  },
+  {
+    "countries": [
+      "SG",
+      "US",
+      "GB",
+      "JP",
+      "IN",
+      "BR"
+    ],
+    "sources": [
+      "youtube"
+    ],
+    "profile": "english"
+  }
+]
