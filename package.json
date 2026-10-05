@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "demo": "node scripts-ui/generate-demo.mjs"
+    "demo": "node scripts-ui/generate-demo.mjs",
+    "verify:production": "node scripts-ui/verify-production.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

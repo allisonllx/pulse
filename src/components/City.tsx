@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows, Html, OrbitControls, RoundedBox } from '@react-three/drei';
+import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { AppearanceEvent, PLATFORMS, Topic } from '@/lib/recording';
 import { visitorPopulation, VisualVisitor } from '@/lib/visitors';
@@ -65,11 +65,10 @@ function Building({ topic, position, selected, dimmed, onSelect }: { topic: Topi
     <mesh position={[0, .59, .837]}><planeGeometry args={[.46, .75]} /><meshStandardMaterial color="#293a38" emissive={selected || hovered ? '#e5c884' : '#b08b54'} emissiveIntensity={selected ? .8 : .2} /></mesh>
     {[-.57, .57].map(x => <mesh key={x} position={[x, .78, .84]}><planeGeometry args={[.38, .38]} /><meshStandardMaterial color="#f8dea2" emissive="#e8be76" emissiveIntensity={dimmed ? 0 : .35} transparent opacity={dimmed ? .15 : 1} /></mesh>)}
     <group position={[0, 1.03, 1.04]} rotation={[.22, 0, 0]}>{Array.from({length:8},(_,i)=><mesh key={i} position={[(i-3.5)*.23,0,0]} castShadow><boxGeometry args={[.23,.055,.52]} /><meshStandardMaterial color={i%2===0?colors[(n+3)%colors.length]:'#f9eed8'} transparent opacity={dimmed?.2:1} /></mesh>)}</group>
-    {!dimmed && <ShopSign label={topic.label} />}
+    {!dimmed && <ShopSign label={topic.label.length>32?topic.label.slice(0,29)+'…':topic.label} />}
     <group position={[-.75,.26,1.08]}><mesh castShadow><boxGeometry args={[.24,.24,.22]} /><meshStandardMaterial color="#a98063" /></mesh><mesh position={[0,.2,0]}><icosahedronGeometry args={[.19,0]} /><meshStandardMaterial color="#789765" /></mesh></group>
     {selected && <><Lamp x={-1.15} z={1.13}/><Lamp x={1.15} z={1.13}/></>}
     {height > 1.9 && [-.55, 0, .55].map(x => <mesh key={x} position={[x, 1.65, .84]}><planeGeometry args={[.25, .37]} /><meshStandardMaterial color="#dccfaf" transparent opacity={dimmed ? .2 : 1} /></mesh>)}
-    {!dimmed && (selected || hovered) && <Html position={[0, height + .9, 0]} center zIndexRange={[15, 0]} style={{ pointerEvents: 'none' }}><div className={`shop-label ${selected ? 'chosen' : ''}`}>{topic.label}<span>{topic.count} appearances</span></div></Html>}
     {(selected || hovered) && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .19, 0]}><ringGeometry args={[1.48, 1.55, 48]} /><meshBasicMaterial color="#d9f2a6" /></mesh>}
   </group>;
 }
