@@ -67,29 +67,6 @@
   },
   {
     "countries": [
-      "SG",
-      "US",
-      "GB",
-      "JP",
-      "IN",
-      "BR",
-      "SE",
-      "DE",
-      "FR",
-      "KR",
-      "ID",
-      "MY",
-      "AU",
-      "CA",
-      "MX"
-    ],
-    "sources": [
-      "bing"
-    ],
-    "profile": "english"
-  },
-  {
-    "countries": [
       "GB",
       "DE",
       "FR"
