@@ -1,14 +1,15 @@
 import type { Topic } from './recording';
 
-export type DistrictId = 'ai' | 'technology' | 'gaming' | 'music' | 'culture' | 'news' | 'other';
+export type DistrictId = 'sports' | 'ai' | 'technology' | 'gaming' | 'music' | 'culture' | 'news' | 'other';
 export type Neighborhood = { id: DistrictId; label: string; color: string; x: number; z: number; width: number; depth: number; topicIds: string[]; subtopics: { label: string; x: number; z: number; topicIds: string[] }[] };
 export type NeighborhoodLayout = { lots: Map<string, [number, number]>; districts: Neighborhood[]; topicIds: string[]; width: number; depth: number };
 const DISTRICTS: { id: DistrictId; label: string; color: string }[] = [
+  { id: 'sports', label: 'Sports', color: '#c6d9b3' },
   { id: 'ai', label: 'AI & agents', color: '#c3d5bc' },
-  { id: 'technology', label: 'Technology', color: '#b9d4dc' },
+  { id: 'technology', label: 'Science & tech', color: '#b9d4dc' },
   { id: 'gaming', label: 'Gaming', color: '#d4c4e2' },
   { id: 'music', label: 'Music', color: '#e7bfc6' },
-  { id: 'culture', label: 'Culture & sport', color: '#e8d4af' },
+  { id: 'culture', label: 'Film & culture', color: '#e8d4af' },
   { id: 'news', label: 'World news', color: '#c5d0d6' },
   { id: 'other', label: 'Around town', color: '#d2d5ba' },
 ];
@@ -23,7 +24,8 @@ export function districtFor(topic: Pick<Topic, 'category' | 'label'>): DistrictI
   if (/\b(gaming|games?|playstation|xbox|nintendo|minecraft|roblox)\b/.test(label)) return 'gaming';
   if (/\b(music|songs?|singer|concert|album|spotify)\b/.test(label)) return 'music';
   if (/\b(technology|software|coding|iphone|android|developer|chip|computing)\b/.test(label)) return 'technology';
-  if (/\b(film|movie|actor|football|soccer|cricket|tennis|sport|bachelor|nobel|literature)\b/.test(label)) return 'culture';
+  if (/\b(football|soccer|cricket|tennis|basketball|nba|sport|goals?|match highlights)\b/.test(label)) return 'sports';
+  if (/\b(film|movie|actor|bachelor|nobel|literature)\b/.test(label)) return 'culture';
   if (/\b(election|president|parliament|minister|trump|bolsonaro|lula|ukraine|war|attack|police|storm|charged|government|court|vote|gaza|israel|rape|assault|arrest|accused|criminal|murder|fires?|jail|haze|lawsuit|scandal|cornell|pm wong)\b/.test(label)) return 'news';
   return 'other';
 }

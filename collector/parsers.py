@@ -37,7 +37,7 @@ def parse(raw, job, observed_at=None):
             candidates.append((node.findtext("title", ""),node.findtext("link", ""),BeautifulSoup(node.findtext("description", ""),"html.parser").get_text(" ",strip=True)))
     elif job.source == "youtube":
         data=extract_json(text)
-        if job.surface=='discovery_week_popular':
+        if job.surface in {'discovery_week_popular','broad_week_popular'}:
             selected=set()
             def filters(value):
                 if isinstance(value,dict):
@@ -47,7 +47,8 @@ def parse(raw, job, observed_at=None):
                 elif isinstance(value,list):
                     for child in value:filters(child)
             filters(data)
-            if not {'This week','Popularity'}<=selected:return []
+            verified_labels={('This week','Popularity'),('今週','人気度'),('Esta semana','Popularidade')}
+            if not any(set(labels)<=selected for labels in verified_labels):return []
         def walk(obj,section=""):
             if isinstance(obj,dict):
                 shelf=obj.get('shelfRenderer')
@@ -128,5 +129,8 @@ def parse(raw, job, observed_at=None):
                       "rank":len(items)+1,"source":job.source,"surface":job.surface,"query":job.query,
                       "language":job.language,"snippet":snippet[:1200],"observationId":job.id,
                       "observedAt":observed_at or utcnow()})
+        if job.surface=='broad_week_popular':
+            from .discovery import query_category
+            items[-1]['discoveryCategory']=query_category(job.query) or 'other'
         if len(items)>=20: break
     return items

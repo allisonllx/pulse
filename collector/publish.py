@@ -11,6 +11,16 @@ def canonical(data):
     return json.dumps(data,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
 
 
+def topic_category(label,items):
+    # Query-derived fallback is navigation metadata, not a claim of semantic matching.
+    detected=category(label)
+    if detected!='other':return detected
+    from collections import Counter
+    hints=Counter(i.get('discoveryCategory') for i in items if i.get('discoveryCategory'))
+    hint=hints.most_common(1)[0][0] if hints else 'other'
+    return {'film_tv':'culture','science_tech':'technology','public_affairs':'news'}.get(hint,hint)
+
+
 def build_recording(store,corrections=None,embeddings=False):
     observations = sorted(store.rows("observations"),key=lambda r:(r["window"],r["country"],r["profile"],r["source"],r["surface"],r["query"] or ""))
     all_items = [json.loads(r["payload"]) for r in store.rows("items")]
@@ -51,7 +61,7 @@ def build_recording(store,corrections=None,embeddings=False):
             # Every reciprocal rank belongs to exactly one source/surface/query observation.
             for item in items: platforms[item["source"]] += 1/item["rank"]
             aliases = sorted({i["title"] for i in items if i["title"] != topic["label"]})
-            snap["topics"].append({"id":topic_id,"label":topic["label"],"aliases":aliases,"category":category(topic["label"]),"score":round(sum(platforms.values()),6),"count":len(items),"firstSeen":topic["first_seen"],"platforms":{k:round(v,6) for k,v in sorted(platforms.items())},"items":sorted(items,key=lambda x:(x["source"],x["surface"],x["query"] or "",x["rank"]))})
+            snap["topics"].append({"id":topic_id,"label":topic["label"],"aliases":aliases,"category":topic_category(topic["label"],items),"score":round(sum(platforms.values()),6),"count":len(items),"firstSeen":topic["first_seen"],"platforms":{k:round(v,6) for k,v in sorted(platforms.items())},"items":sorted(items,key=lambda x:(x["source"],x["surface"],x["query"] or "",x["rank"]))})
         snap["topics"].sort(key=lambda t:(-t["score"],t["id"]))
     country_codes = sorted({o["country"] for o in observations})
     generated = max((o["observed_at"] for o in observations),default="1970-01-01T00:00:00Z")
