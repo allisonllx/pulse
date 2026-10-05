@@ -35,3 +35,7 @@
   .city-stage{min-height:0}
   .city-stage>[data-focused-topic]{position:absolute!important;inset:0}
 }
+
+@media(min-width:951px){
+  .city-stage>.list-view{position:absolute!important;inset:0;max-height:none;overflow-y:auto;align-content:start;grid-auto-rows:max-content}
+}
