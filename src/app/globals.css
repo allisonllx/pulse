@@ -27,3 +27,11 @@
 .source-context button{background:none;border:0;color:#d9f2a6;text-decoration:underline;cursor:pointer;font:inherit}
 
 .evidence-query{font-size:9px;color:#b9c6ae;line-height:1.6;margin:6px 0;overflow-wrap:anywhere}
+
+/* Keep the desktop diorama framed within the screen, independently of sidebar content. */
+@media(min-width:951px){
+  .workspace{flex:none;height:max(640px,calc(100svh - 171px));min-height:0}
+  .left-panel,.right-panel{min-height:0;max-height:100%;overflow-y:auto}
+  .city-stage{min-height:0}
+  .city-stage>[data-focused-topic]{position:absolute!important;inset:0}
+}
