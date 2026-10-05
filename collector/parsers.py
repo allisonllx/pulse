@@ -1,5 +1,6 @@
 from __future__ import annotations
 import hashlib, json, re
+import base64
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin, urlsplit, parse_qs, urlunsplit
 from bs4 import BeautifulSoup
@@ -65,6 +66,20 @@ def parse(raw, job, observed_at=None):
                     url = params.get("q",params.get("url",[""]))[0]
                 parent = heading.find_parent("div")
                 candidates.append((heading.get_text(" ",strip=True),url,parent.get_text(" ",strip=True) if parent else ""))
+        elif job.source == 'bing':
+            for result in soup.select('li.b_algo'):
+                link=result.select_one('h2 a[href]')
+                if link:
+                    url=link['href']
+                    if urlsplit(url).hostname in {'www.bing.com','bing.com'} and urlsplit(url).path=='/ck/a':
+                        encoded=parse_qs(urlsplit(url).query).get('u',[''])[0]
+                        if not encoded.startswith('a1'):continue
+                        try:url=base64.urlsafe_b64decode(encoded[2:]+'='*((-len(encoded[2:]))%4)).decode('utf-8')
+                        except (ValueError,UnicodeError):continue
+                    candidates.append((link.get_text(' ',strip=True),url,result.get_text(' ',strip=True)))
+        elif job.source == 'reddit':
+            for post in soup.select('shreddit-post[post-title][permalink]'):
+                candidates.append((post['post-title'],urljoin(job.url,post['permalink']),'Public popular feed; sampled page order'))
         elif job.source == 'instagram':
             for link in soup.select("a[href*='/p/'],a[href*='/reel/']"):
                 candidates.append((link.get_text(' ',strip=True) or link.get('title',''),urljoin(job.url,link['href']),''))

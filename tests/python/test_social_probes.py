@@ -41,3 +41,20 @@ def test_translation_refresh_failure_does_not_abort_collection(store,monkeypatch
  from collector.cli import refresh_translations
  monkeypatch.setattr(translation,'translate_publication',lambda *args,**kwargs:(_ for _ in ()).throw(ValueError('model unavailable')))
  assert refresh_translations('public/data',store)=={'status':'unavailable','error':'ValueError'}
+
+def test_bing_tracking_wrappers_share_destination_identity():
+ import base64
+ job=plan(['SG'],['bing'],W)[0]
+ destination='https://example.com/music'
+ encoded='a1'+base64.urlsafe_b64encode(destination.encode()).decode().rstrip('=')
+ raw=('<li class="b_algo"><h2><a href="https://www.bing.com/ck/a?tracking=first&amp;u='+encoded+'">Music</a></h2></li><li class="b_algo"><h2><a href="https://www.bing.com/ck/a?tracking=second&amp;u='+encoded+'">Music again</a></h2></li>').encode()
+ items=parse(raw,job,W)
+ assert len(items)==1 and items[0]['url']==destination
+ assert job.settings['gl'] is None and 'setlang=en-US' in job.url
+
+def test_reddit_challenge_is_not_a_post_and_real_posts_are_extracted():
+ job=plan(['US'],['reddit'],W)[0]
+ assert not parse(b'<form><input name="js_challenge"></form>',job,W)
+ items=parse(b'<shreddit-post post-title="A real public post" permalink="/r/example/comments/abc/title/"></shreddit-post>',job,W)
+ assert items[0]['url']=='https://www.reddit.com/r/example/comments/abc/title/'
+ assert job.query is None and job.settings['gl'] is None

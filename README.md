@@ -91,3 +91,8 @@ npm run build
 ```
 
 See [collector guide](collector/README.md), [public contract](docs/data-contract.md), and [implementation ledger](docs/implementation.md). The eleven-day archive and expiry-day final harvest require the local worker to run over time; implementing the software does not manufacture that history.
+
+
+City shops now sit in colored, labeled topic neighborhoods. Smaller shared-subject clouds organize related shops without merging topic memberships. The fixed country/profile topic universe determines replay positions. Source coverage across countries and the current view's source context expose English controls rather than implying News is the entire recording.
+
+The recurring panel adds Bing's public HTML searches in all fifteen countries (identical English settings, no explicit market parameter), YouTube music/gaming controls in Germany, France and Mexico, and local Gaming discovery in Mexico, Germany and France. Germany/France/UK Gaming uses a normal browser rejecting consent in the displayed language. `queries` narrows expansion panels; explicit panel `adapter` overrides the global adapter. The original six-country controls remain intact. These additions start when actually collected; earlier windows retain gaps. See [source feasibility](docs/source-feasibility.md) for diagnosed TikTok, Instagram and Reddit failures, remaining candidates and the limits of proxy/IP inference.

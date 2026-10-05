@@ -40,15 +40,66 @@
     "countries": [
       "SG",
       "US",
-      "GB",
       "JP",
       "IN",
-      "BR"
+      "BR",
+      "MX"
     ],
     "sources": [
       "youtube"
     ],
     "profile": "local",
     "youtubeSurface": "gaming_discovery"
+  },
+  {
+    "countries": [
+      "DE",
+      "FR",
+      "MX"
+    ],
+    "sources": [
+      "youtube"
+    ],
+    "profile": "english",
+    "queries": [
+      "music",
+      "gaming"
+    ]
+  },
+  {
+    "countries": [
+      "SG",
+      "US",
+      "GB",
+      "JP",
+      "IN",
+      "BR",
+      "SE",
+      "DE",
+      "FR",
+      "KR",
+      "ID",
+      "MY",
+      "AU",
+      "CA",
+      "MX"
+    ],
+    "sources": [
+      "bing"
+    ],
+    "profile": "english"
+  },
+  {
+    "countries": [
+      "GB",
+      "DE",
+      "FR"
+    ],
+    "sources": [
+      "youtube"
+    ],
+    "profile": "local",
+    "youtubeSurface": "gaming_discovery",
+    "adapter": "playwright"
   }
 ]

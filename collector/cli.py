@@ -136,8 +136,16 @@ def main(argv=None):
                         panels=json.loads(args.panel.read_text())
                         if not isinstance(panels,list) or not panels:raise ValueError("Panel must be a nonempty JSON list")
                         jobs=[]
+                        panel_adapters={}
                         for panel in panels:
-                            jobs.extend(plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface,youtube_surface=panel.get('youtubeSurface','search_html')))
+                            panel_jobs=plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface,youtube_surface=panel.get('youtubeSurface','search_html'))
+                            if 'queries' in panel:
+                                if not isinstance(panel['queries'],list) or any(q not in QUERIES for q in panel['queries']):raise ValueError('Invalid panel queries')
+                                panel_jobs=[j for j in panel_jobs if j.query is None or j.query in panel['queries']]
+                            if panel.get('adapter'):
+                                if panel['adapter'] not in {'http','playwright','auto'}:raise ValueError('Invalid panel adapter')
+                                panel_adapters.update({j.id:panel['adapter'] for j in panel_jobs})
+                            jobs.extend(panel_jobs)
                         jobs=list({j.id:j for j in jobs}.values())
                     else:jobs = plan(countries,sources,profile=args.profile,news_surface=args.news_surface,youtube_surface=args.youtube_surface)
                     if args.watchlist:
@@ -145,6 +153,7 @@ def main(argv=None):
                     if args.queries:jobs=[j for j in jobs if j.query is None or j.query in args.queries]
                     if args.adapter!="auto":jobs = [replace(j,adapter=args.adapter) for j in jobs]
                     else:jobs=[replace(j,adapter='auto') if j.adapter=='http' else j for j in jobs]
+                    if args.panel:jobs=[replace(j,adapter=panel_adapters.get(j.id,j.adapter)) for j in jobs]
                     if args.retry_failed and not args.dry_run:
                         with store.db:
                             for j in jobs:
@@ -182,7 +191,7 @@ def main(argv=None):
                             if jobs[obs['job_id']].surface!='watch_rss':raise ValueError('Re-extraction failed; normalized data preserved.')
                         store.db.execute('DELETE FROM items WHERE observation_id=?',(obs['id'],))
                         for item in items:store.db.execute('INSERT INTO items VALUES(?,?,?)',(item['id'],obs['id'],json.dumps(item,ensure_ascii=False)))
-                        store.db.execute('UPDATE observations SET extraction_version=? WHERE id=?',(EXTRACTION_VERSION,obs['id']))
+                        store.db.execute('UPDATE observations SET extraction_version=?,settings=? WHERE id=?',(EXTRACTION_VERSION,json.dumps(jobs[obs['job_id']].settings),obs['id']))
                         if recover:store.db.execute("UPDATE observations SET status='success',error='recovered_extraction_v3' WHERE id=?",(obs['id'],))
                         count+=1
                 result={'reextracted':count,'extractorVersion':EXTRACTION_VERSION}

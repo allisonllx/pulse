@@ -149,6 +149,8 @@ class PlaywrightAdapter(HTTPAdapter):
         except ImportError:
             raise FetchError("browser_unavailable") from None
         count,requests = [0],[0]
+        blocked_hosts=set()
+        stage='launch'
         raw = b""
         status = "browser_error"
         try:
@@ -164,15 +166,25 @@ class PlaywrightAdapter(HTTPAdapter):
                         cdp.send("Page.stopLoading")
                 cdp.on("Network.dataReceived",received)
                 def route_request(route):
-                    requests[0] += 1
                     count[0] += len(route.request.url.encode())+1024
                     host = urlsplit(route.request.url).hostname or ""
-                    allowed = {"google_news":("google.com","gstatic.com"),"google_search":("google.com","gstatic.com"),"youtube":("youtube.com","googlevideo.com","ytimg.com","google.com"),"instagram":("instagram.com","cdninstagram.com","fbcdn.net"),"tiktok":("tiktok.com","tiktokcdn.com","ttwstatic.com","ibytedtos.com","byteoversea.com","ibyteimg.com")}[job.source]
+                    allowed = {"bing":("bing.com",),"reddit":("reddit.com","redditstatic.com","redditmedia.com"),"google_news":("google.com","gstatic.com"),"google_search":("google.com","gstatic.com"),"youtube":("youtube.com","googlevideo.com","ytimg.com","google.com"),"instagram":("instagram.com","cdninstagram.com","fbcdn.net"),"tiktok":("tiktok.com","tiktokcdn.com","ttwstatic.com","ibytedtos.com","byteoversea.com","ibyteimg.com")}[job.source]
                     if count[0]>=BROWSER_CAP or requests[0]>40 or route.request.resource_type in {"image","media","font"} or not any(host==d or host.endswith("."+d) for d in allowed):
+                        if not any(host==d or host.endswith('.'+d) for d in allowed):blocked_hosts.add(host)
                         route.abort()
-                    else: route.continue_()
+                    else:
+                        requests[0] += 1
+                        route.continue_()
                 context.route("**/*",route_request)
+                stage='navigation'
                 page.goto(job.url,wait_until="domcontentloaded",timeout=25000)
+                stage='consent'
+                if job.source=='youtube':
+                    reject=page.get_by_role('button',name=re.compile(r'^(Reject all|Alle ablehnen|Tout refuser|Rechazar todo)$',re.I))
+                    if reject.count():
+                        reject.first.click(timeout=5000)
+                        page.wait_for_timeout(1500)
+                stage='render'
                 page.wait_for_timeout(7000 if job.source=='tiktok' else 1500)
                 raw = page.content().encode()
                 if len(raw)>BROWSER_CAP:raise FetchError("response_too_large")
@@ -181,8 +193,10 @@ class PlaywrightAdapter(HTTPAdapter):
                 status = "success"
                 return raw
         except FetchError: raise
-        except Exception:
-            raise FetchError("browser_unavailable_or_blocked") from None
+        except Exception as error:
+            # Save structural diagnostics without exception text, URLs or credentials.
+            self.store.account(job.id,'browser_diagnostics',0,type(error).__name__,json.dumps({'stage':stage,'exceptionType':type(error).__name__,'requests':requests[0],'bytes':count[0],'blockedHosts':sorted(blocked_hosts)}).encode())
+            raise FetchError('browser_timeout' if type(error).__name__=='TimeoutError' else "browser_unavailable_or_blocked") from None
         finally:
             # Charge a full allocation on failed browser attempts (unknown in-flight bytes).
             self.store.account(job.id,"browser",count[0] if status=="success" else max(count[0],BROWSER_CAP),status,raw)

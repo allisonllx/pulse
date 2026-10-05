@@ -3,8 +3,9 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { AppearanceEvent, PLATFORMS, Topic } from '@/lib/recording';
+import { AppearanceEvent, PLATFORMS, Source, Topic } from '@/lib/recording';
 import { visitorPopulation, VisualVisitor } from '@/lib/visitors';
+import { buildNeighborhoodLayout } from '@/lib/neighborhoods';
 
 const colors = ['#e8c6a2', '#bed0b6', '#d0c5d9', '#e0bbb0', '#e3d5ab', '#b9ccd3'];
 function hash(value: string) { let n = 0; for (const c of value) n = (n * 31 + c.charCodeAt(0)) >>> 0; return n; }
@@ -12,17 +13,21 @@ export function positionFor(id: string): [number, number] {
   // Stable IDs occupy deterministic lots; collision resolution happens in layoutFor.
   const n = hash(id); return [((n % 5) - 2) * 3.2, ((Math.floor(n / 5) % 4) - 1.5) * 3.2];
 }
-function layoutFor(topics: Topic[]) {
-  const occupied = new Set<number>(), result = new Map<string, [number, number]>();
-  const sorted = [...topics].sort((a, b) => a.id.localeCompare(b.id));
-  const columns = Math.max(5, Math.ceil(Math.sqrt(sorted.length * 1.25)));
-  const rows = Math.max(4, Math.ceil(sorted.length / columns));
-  for (const t of sorted) {
-    let slot = hash(t.id) % (columns * rows);
-    while (occupied.has(slot)) slot = (slot + 1) % (columns * rows);
-    occupied.add(slot); result.set(t.id, [((slot % columns) - (columns - 1) / 2) * 3.2, (Math.floor(slot / columns) - (rows - 1) / 2) * 3.2]);
-  }
-  return { lots: result, width: columns * 3.2 + 2, depth: rows * 3.2 + 2 };
+function FloatingLabel({ label, detail, position, color, small = false, dimmed = false }: { label: string; detail?: string; position: [number, number, number]; color: string; small?: boolean; dimmed?: boolean }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 768; canvas.height = 192;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#fbf3e5'; context.beginPath(); context.roundRect(16, 20, 736, 150, 70); context.fill();
+    context.strokeStyle = color; context.lineWidth = 10; context.stroke();
+    context.fillStyle = '#393f35'; context.textAlign = 'center'; context.textBaseline = 'middle';
+    context.font = '700 76px sans-serif'; context.fillText(label, 384, detail ? 74 : 94, 670);
+    if (detail) { context.font = '500 42px sans-serif'; context.fillStyle = '#657060'; context.fillText(detail, 384, 132, 660); }
+    const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; return map;
+  }, [label, detail, color, small]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return <sprite position={position} scale={small ? [4.6, 1.15, 1] : [6.6, 1.65, 1]} renderOrder={20}>
+    <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} opacity={dimmed ? .42 : 1} toneMapped={false} />
+  </sprite>;
 }
 
 function Tree({ x, z }: { x: number; z: number }) {
@@ -73,20 +78,20 @@ function Building({ topic, position, selected, dimmed, muted, onSelect }: { topi
     {(selected || hovered) && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .19, 0]}><ringGeometry args={[1.48, 1.55, 48]} /><meshBasicMaterial color="#d9f2a6" /></mesh>}
   </group>;
 }
-function Visitors({ events, lots, reduced, animate }: { events: VisualVisitor[]; lots: Map<string, [number, number]>; reduced: boolean; animate: boolean }) {
+function Visitors({ events, lots, entrances, reduced, animate }: { events: VisualVisitor[]; lots: Map<string, [number, number]>; entrances: Map<Source, [number, number]>; reduced: boolean; animate: boolean }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const heads = useRef<THREE.InstancedMesh>(null);
   const hair = useRef<THREE.InstancedMesh>(null);
   const clock = useRef(0);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const people = useMemo(() => events.filter(e => lots.has(e.topicId)).map((e, i) => ({ ...e, end: lots.get(e.topicId)!, delay: (i / Math.max(events.length, 1)) * 5, lane: PLATFORMS.findIndex(p => p.id === e.source), color: PLATFORMS.find(p => p.id === e.source)?.color ?? '#fff' })), [events, lots]);
+  const people = useMemo(() => events.filter(e => lots.has(e.topicId)).map((e, i) => ({ ...e, end: lots.get(e.topicId)!, entry: entrances.get(e.source) ?? lots.get(e.topicId)!, delay: (i / Math.max(events.length, 1)) * 5, color: PLATFORMS.find(p => p.id === e.source)?.color ?? '#fff' })), [events, lots, entrances]);
   useFrame((_, delta) => {
     if (!mesh.current) return;
     if (animate && !reduced) clock.current += Math.min(delta, .1);
     people.forEach((p, i) => {
       const progress = reduced || p.stationary ? 1 : Math.max(0, Math.min(1, (clock.current - p.delay) / 4));
       const t = p.kind === 'departure' ? 1 - progress : progress;
-      const startX = -10, startZ = (p.lane - 1.5) * 3.2;
+      const [startX, startZ] = p.entry;
       const bend = .62;
       const q = p.queueIndex ?? i % 10;
       const queueX = p.end[0] + (q % 5 - 2) * .23;
@@ -108,13 +113,23 @@ function Visitors({ events, lots, reduced, animate }: { events: VisualVisitor[];
   return people.length ? <><instancedMesh ref={mesh} args={[undefined, undefined, people.length]} frustumCulled={false} castShadow><boxGeometry /><meshStandardMaterial roughness={.9} /></instancedMesh><instancedMesh ref={heads} args={[undefined,undefined,people.length]} frustumCulled={false}><boxGeometry /><meshStandardMaterial color="#e3ba93" /></instancedMesh><instancedMesh ref={hair} args={[undefined,undefined,people.length]} frustumCulled={false}><boxGeometry /><meshStandardMaterial color="#6c5142" /></instancedMesh></> : null;
 }
 function Diorama({ allTopics, visible, selected, events, onSelect, reduced, animate, frameKey }: CityProps) {
-  const layout = useMemo(() => layoutFor(allTopics), [allTopics]);
+  const layout = useMemo(() => buildNeighborhoodLayout(allTopics), [allTopics]);
+  const sources = useMemo(() => {
+    const observed = new Set(allTopics.flatMap(topic => topic.items.map(item => item.source)));
+    return PLATFORMS.filter(platform => observed.has(platform.id));
+  }, [allTopics]);
+  const entranceWidth = sources.length ? 4.8 : 0;
+  const cityWidth = layout.width + entranceWidth;
+  const cityDepth = Math.max(layout.depth, sources.length * 2.8 + 2);
+  const entranceX = -layout.width / 2 - entranceWidth / 2;
+  const entrances = useMemo(() => new Map<Source, [number, number]>(sources.map((source, index) =>
+    [source.id, [entranceX, (index - (sources.length - 1) / 2) * 2.8]])), [sources, entranceX]);
   const { camera,size }=useThree();
   useEffect(()=>{
     const ortho=camera as THREE.OrthographicCamera;
-    ortho.zoom=Math.min(36,size.width/(Math.max(layout.width,layout.depth)*1.4),size.height/(Math.max(layout.width,layout.depth)*.95));
+    ortho.zoom=Math.min(36,size.width/(Math.max(cityWidth,cityDepth)*1.5),size.height/(Math.max(cityWidth,cityDepth)*1.15));
     ortho.updateProjectionMatrix();
-  },[camera,size.width,size.height,layout.width,layout.depth]);
+  },[camera,size.width,size.height,cityWidth,cityDepth]);
   const visibleIds = new Set(visible.map(t => t.id));
   const people = visitorPopulation(visible,events);
   const focus=layout.lots.get(selected??'');
@@ -126,24 +141,29 @@ function Diorama({ allTopics, visible, selected, events, onSelect, reduced, anim
     <directionalLight position={[-8, 4, -6]} intensity={.8} color="#99b5e5" />
     <group position={[0, -.5, 0]}>
       {focus&&<><primitive object={lightTarget}/><spotLight color="#ffe3a1" position={[focus[0],8,focus[1]+1]} target={lightTarget} angle={.42} penumbra={.8} intensity={45} distance={15}/><mesh rotation={[-Math.PI/2,0,0]} position={[focus[0],.03,focus[1]]}><circleGeometry args={[1.9,48]}/><meshBasicMaterial color="#ffe2a1" transparent opacity={.15} depthWrite={false}/></mesh></>}
-      <RoundedBox args={[layout.width, .65, layout.depth]} radius={.18} position={[0, -.33, 0]} receiveShadow><meshStandardMaterial color="#adad91" /></RoundedBox>
-      <RoundedBox args={[layout.width + .15, .1, layout.depth + .15]} radius={.1} position={[0, -.66, 0]}><meshStandardMaterial color="#3d514b" /></RoundedBox>
-      {[-4.8, -1.6, 1.6, 4.8].map((z, i) => <group key={z}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .012, z]} receiveShadow><planeGeometry args={[layout.width - .15, .85]} /><meshStandardMaterial color="#46524d" /></mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .025, z + .36]}><planeGeometry args={[layout.width - .2, .025]} /><meshBasicMaterial color={PLATFORMS[i].color} transparent opacity={.65} /></mesh>
-        {Array.from({ length: 15 }, (_, index) => <mesh key={index} rotation={[-Math.PI / 2, 0, 0]} position={[-7 + index, .026, z]}><planeGeometry args={[.32, .025]} /><meshBasicMaterial color="#a3a99a" /></mesh>)}
+      <RoundedBox args={[cityWidth, .65, cityDepth]} radius={.18} position={[-entranceWidth / 2, -.33, 0]} receiveShadow><meshStandardMaterial color="#adad91" /></RoundedBox>
+      <RoundedBox args={[cityWidth + .15, .1, cityDepth + .15]} radius={.1} position={[-entranceWidth / 2, -.66, 0]}><meshStandardMaterial color="#3d514b" /></RoundedBox>
+      {sources.length > 0 && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[entranceX, .035, 0]} receiveShadow><planeGeometry args={[entranceWidth - .45, cityDepth - .65]} /><meshStandardMaterial color="#59685e" /></mesh>}
+      {sources.map(source => {
+        const [x, z] = entrances.get(source.id)!;
+        return <group key={source.id}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[x, .045, z]}><planeGeometry args={[entranceWidth - .7, .2]} /><meshBasicMaterial color={source.color} /></mesh>
+          <FloatingLabel label={source.label} color={source.color} position={[x, 1.55, z - .15]} small />
+        </group>;
+      })}
+      {layout.districts.map(district => <group key={district.id}>
+        <RoundedBox args={[district.width, .06, district.depth]} radius={.12} position={[district.x, .015, district.z]} receiveShadow><meshStandardMaterial color={district.color} roughness={1} /></RoundedBox>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[district.x, .052, district.z + district.depth / 2 - .2]}><planeGeometry args={[district.width - .35, .3]} /><meshStandardMaterial color="#6d7869" /></mesh>
+        <FloatingLabel label={district.label} detail={`${district.topicIds.filter(id => visibleIds.has(id)).length} shops in view`} color={district.color} position={[district.x, 5.3, district.z - district.depth / 2 + .25]} dimmed={!district.topicIds.some(id => visibleIds.has(id))} />
+        {district.subtopics.map(group => <FloatingLabel key={group.label} label={group.label} color={district.color} position={[group.x, 3.85, group.z + .25]} small dimmed={!group.topicIds.some(id => visibleIds.has(id))} />)}
+        <Lamp x={district.x - district.width / 2 + .15} z={district.z + district.depth / 2 - .2} />
+        <Tree x={district.x + district.width / 2 - .2} z={district.z - district.depth / 2 + .25} />
       </group>)}
-      {[-6.4, -3.2, 0, 3.2, 6.4].map(x => <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, .018, 0]} receiveShadow><planeGeometry args={[.6, layout.depth - .15]} /><meshStandardMaterial color="#46524d" /></mesh>)}
-      {allTopics.map(t => <Building key={t.id} topic={visible.find(v => v.id === t.id) ?? t} position={layout.lots.get(t.id)!} selected={selected === t.id} dimmed={!visibleIds.has(t.id)} muted={!!selected && selected!==t.id} onSelect={onSelect} />)}
-      {[-6.4,0,6.4].flatMap(x=>[-4.8,1.6].map(z=><group key={`${x}-${z}`}>
-        <Lamp x={x+.6} z={z+.65}/>
-        {Array.from({length:5},(_,i)=><mesh key={i} rotation={[-Math.PI/2,0,0]} position={[x+(i-2)*.14,.029,z]}><planeGeometry args={[.09,.72]} /><meshBasicMaterial color="#ede4cd" /></mesh>)}
-      </group>))}
-      {[-7.8, 7.8].flatMap(x => [-5.8, -2.3, 2.3, 5.8].map(z => <Tree key={`${x}-${z}`} x={x} z={z} />))}
-      <Visitors key={frameKey} events={people} lots={layout.lots} reduced={reduced} animate={animate} />
+      {allTopics.filter(t => layout.lots.has(t.id)).map(t => <Building key={t.id} topic={visible.find(v => v.id === t.id) ?? t} position={layout.lots.get(t.id)!} selected={selected === t.id} dimmed={!visibleIds.has(t.id)} muted={!!selected && selected!==t.id} onSelect={onSelect} />)}
+      <Visitors key={frameKey} events={people} lots={layout.lots} entrances={entrances} reduced={reduced} animate={animate} />
     </group>
     <ContactShadows position={[0, -1.25, 0]} opacity={.45} scale={40} blur={2.5} far={10} resolution={256} color="#000000" />
-    <OrbitControls makeDefault enablePan={false} enableZoom minZoom={8} maxZoom={100} minPolarAngle={.3} maxPolarAngle={1.35} target={[0, 0, 0]} />
+    <OrbitControls makeDefault enablePan={false} enableZoom minZoom={8} maxZoom={100} minPolarAngle={.3} maxPolarAngle={1.35} target={[-entranceWidth / 2, 0, 0]} />
   </>;
 }
 export type CityProps = { allTopics: Topic[]; visible: Topic[]; selected: string | null; events: AppearanceEvent[]; onSelect: (id: string) => void; reduced: boolean; animate: boolean; frameKey: string };

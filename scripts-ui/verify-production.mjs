@@ -15,6 +15,7 @@ try {
   await page.locator('[data-resident-count]').waitFor({timeout:30000});
   await page.locator('.topic-row').first().click();
   assert.notEqual(await page.locator('[data-focused-topic]').getAttribute('data-focused-topic'),'');
+  await page.waitForTimeout(750);
   await page.screenshot({path:'artifacts/refined-city.png'});
   await page.getByRole('button',{name:'Clear shop focus'}).click();
   assert.equal(await page.locator('[data-focused-topic]').getAttribute('data-focused-topic'),'');
@@ -30,8 +31,10 @@ try {
   await page.locator('#country').selectOption('SG');
   await page.getByRole('button',{name:'City view',exact:true}).click();
   await page.getByRole('button',{name:'English control',exact:true}).click();
-  const snapshot=recording.snapshots.find(s=>s.country==='SG'&&s.profile==='english');
-  const expected=[...snapshot.topics].sort((a,b)=>b.count-a.count||a.id.localeCompare(b.id)).slice(0,48).reduce((n,t)=>n+t.items.length,0);
+  const snapshot=recording.snapshots.find(s=>s.country==='SG'&&s.profile==='english'&&s.window===recording.windows.at(-1));
+  const universe=new Map();for(const s of recording.snapshots.filter(s=>s.country==='SG'&&s.profile==='english'))for(const t of s.topics)if(!universe.has(t.id))universe.set(t.id,t);
+  const ids=new Set([...universe.values()].sort((a,b)=>b.count-a.count||a.id.localeCompare(b.id)).slice(0,48).map(t=>t.id));
+  const expected=snapshot.topics.filter(t=>ids.has(t.id)).reduce((n,t)=>n+t.items.length,0);
   await page.locator(`[data-resident-count="${expected}"]`).waitFor({timeout:30000});
   await page.locator('#country').selectOption('JP');
   await page.getByRole('button',{name:'List view',exact:true}).click();

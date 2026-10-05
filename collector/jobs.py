@@ -32,8 +32,12 @@ class Job:
 
     @property
     def settings(self):
-        return {"hl": self.language, "gl": None if self.source in {"instagram","tiktok"} else self.country if self.profile == "local" else "US",
+        settings={"hl": self.language, "gl": None if self.source in {"instagram","tiktok","bing","reddit"} else self.country if self.profile == "local" else "US",
                 "acceptLanguage": self.language, "loggedIn": False, "personalization": False}
+        if self.source=='tiktok' and self.surface.startswith('creative_center'):
+            from urllib.parse import urlsplit,parse_qs
+            settings['platformRegion']=parse_qs(urlsplit(self.url).query).get('region',[None])[0]
+        return settings
 
 
 def plan(countries, sources, window=None, profile="all", news_surface="local_rss",youtube_surface="search_html"):
@@ -50,7 +54,7 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
             if profile not in ("all", source_profile):
                 continue
             lang = COUNTRIES[country][2] if source_profile == "local" else "en"
-            queries = [None] if source == "google_news" or (source=="youtube" and youtube_surface=="gaming_discovery") else QUERIES
+            queries = [None] if source in {"google_news","reddit"} or (source=="youtube" and youtube_surface=="gaming_discovery") else QUERIES
             if source in {"tiktok","instagram"}:
                 # Experimental capability is a single bounded probe per invocation.
                 if any(j.source == source for j in jobs):
@@ -66,6 +70,10 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
                     url = ("https://www.youtube.com/gaming?"+urlencode({'hl':lang,'gl':country})) if youtube_surface=='gaming_discovery' else "https://www.youtube.com/results?" + urlencode({"search_query":query, "hl":"en", "gl":"US"})
                 elif source == 'instagram':
                     url = 'https://www.instagram.com/explore/search/keyword/?'+urlencode({'q':query})
+                elif source == 'bing':
+                    url = 'https://www.bing.com/search?'+urlencode({'q':query,'setlang':'en-US'})
+                elif source == 'reddit':
+                    url = 'https://www.reddit.com/r/popular/'
                 else:
                     url = "https://www.tiktok.com/search?" + urlencode({"q":query, "lang":"en"})
                 jobs.append(Job(country, window or window_at(), source_profile, source, surface, query, url, lang, CAPABILITIES[source]["adapter"]))

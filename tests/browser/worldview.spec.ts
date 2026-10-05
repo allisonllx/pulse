@@ -54,7 +54,7 @@ test('published pilot opens real evidence and reconciles visitors',async({page})
   await page.goto('/');
   await expect(page.getByText('RECORDED OBSERVATIONS',{exact:true})).toBeVisible();
   await expect(page.locator('[data-resident-count]')).toHaveAttribute('data-resident-count',String(count),{timeout:30000});
-  await expect(page.getByRole('button',{name:'Play replay'})).toBeDisabled();
+  if(recording.windows.length<2)await expect(page.getByRole('button',{name:'Play replay'})).toBeDisabled();else await expect(page.getByRole('button',{name:'Play replay'})).toBeEnabled();
   await page.getByRole('button',{name:'List view',exact:true}).click();
   await expect(page.locator('.topic-card')).toHaveCount(snapshot.topics.length);
   await expect(page.locator('.evidence-item a').first()).toHaveAttribute('href',/^https:\/\//);
@@ -96,3 +96,13 @@ test('French translations preserve originals and the recorded Cornell query is e
  await page.getByRole('button',{name:'English translations',exact:true}).click();
  await expect(page.locator('.topic-detail h3')).toHaveText(original.replace(/^Original: /,''));
 });
+
+ test('source coverage exposes successful English sources for an expansion country',async({page})=>{
+ await page.unroute('**/data/manifest.json');await page.goto('/');
+ await page.locator('#country').selectOption('FR');
+ await page.locator('.source-context button').click();
+ await expect(page.locator('.section-kicker').filter({hasText:'ENGLISH CONTROL'})).toBeVisible();
+ await expect(page.locator('.platform-row').filter({hasText:'YouTube'})).toBeVisible();
+ await page.getByText('Source coverage across countries',{exact:true}).click();
+ await expect(page.locator('.coverage-countries')).toBeVisible();
+ });

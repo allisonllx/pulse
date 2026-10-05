@@ -1,4 +1,4 @@
-export type Source = 'google_news' | 'google_search' | 'youtube' | 'tiktok' | 'instagram';
+export type Source = 'google_news' | 'google_search' | 'youtube' | 'tiktok' | 'instagram' | 'bing' | 'reddit';
 export type Profile = 'local' | 'english';
 export type Country = { code: string; name: string; flag: string; language: string };
 export type Coverage = { source: Source; surface: string; query: string | null; status: string; itemCount: number; observedCountry: string | null; observedAt: string; observationId: string; bytes: number; promoted: boolean };
@@ -13,7 +13,9 @@ export const PLATFORMS: { id: Source; label: string; color: string; short: strin
   { id: 'google_search', label: 'Google Search', color: '#f4c078', short: 'SEARCH' },
   { id: 'youtube', label: 'YouTube', color: '#ec8794', short: 'VIDEO' },
   { id: 'tiktok', label: 'TikTok', color: '#a99bea', short: 'SOCIAL' },
-  { id: 'instagram', label: 'Instagram', color: '#d8a8c0', short: 'PHOTO' }
+  { id: 'instagram', label: 'Instagram', color: '#d8a8c0', short: 'PHOTO' },
+  { id: 'bing', label: 'Bing', color: '#87cce0', short: 'WEB' },
+  { id: 'reddit', label: 'Reddit', color: '#edac81', short: 'FORUM' }
 ];
 export const success = (status: string) => status === 'success' || status === 'ok';
 export const coverageKey = (c: Pick<Coverage, 'source' | 'surface' | 'query'>) => `${c.source}|${c.surface}|${c.query ?? ''}`;
