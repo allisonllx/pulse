@@ -4,7 +4,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from .settings import Settings,PILOT,EXPANSION,CAPABILITIES
 from .settings import QUERIES,EXTRACTION_VERSION
-from .jobs import plan,window_at,utcnow
+from .jobs import plan,plan_watches,window_at,utcnow
 from .store import Store
 from .adapters import HTTPAdapter,PlaywrightAdapter,JOB_RESERVATION,BROWSER_RESERVATION
 from .publish import publish,build_recording
@@ -62,6 +62,16 @@ def collect(store,settings,jobs,dry_run=False,adapter_factory=None):
     return {**report,"successful":success,"failed":failed,"budget":budget_status(store,settings)}
 
 
+def refresh_translations(destination,store):
+    try:
+        from .translations import translate_publication
+        return translate_publication(destination,store.root/'translations.sqlite')
+    except Exception as error:
+        # Optional analysis must never stop time-sensitive source harvesting.
+        print('worldview: translation refresh unavailable ('+type(error).__name__+'); originals preserved, collection continues.',file=sys.stderr)
+        return {'status':'unavailable','error':type(error).__name__}
+
+
 def make_parser():
     parser = argparse.ArgumentParser(prog="worldview",description="Bounded, verified six-hour Worldview recordings")
     parser.add_argument("--data-dir",type=Path,help="Local evidence directory")
@@ -78,16 +88,21 @@ def make_parser():
         p.add_argument("--queries",choices=QUERIES,nargs='+',help="Subset of the five fixed control queries for bounded probes")
         p.add_argument("--retry-failed",action="store_true",help="Retry failed observations only within the current window; attempt evidence remains")
         p.add_argument("--adapter",choices=["auto","http","playwright"],default="auto",help="Override source adapter; browser installation is explicit")
+        p.add_argument("--youtube-surface",choices=["search_html","gaming_discovery"],default="search_html")
+        p.add_argument("--watchlist",type=Path,help="JSON list of tracked news phrases for the selected countries")
         p.add_argument("--news-surface",choices=["local_rss","local_html"],default="local_rss")
         p.add_argument("--windows",type=int,default=44,help="Bounded foreground run: default eleven days / 44 windows")
         p.add_argument("--panel",type=Path,help="JSON list of country/source panels collected in the same window")
         p.add_argument("--publish-output",type=Path,help="Atomically publish after each completed window")
         p.add_argument("--embeddings",action="store_true",help="Use installed multilingual model for published topics")
+        p.add_argument("--translations",action="store_true",help="Translate published headlines locally after each publication; initial model download may be required")
     for command in ("summarize","publish"):
         p = sub.add_parser(command)
         p.add_argument("--corrections",type=Path,default=Path("config/topic-corrections.json"))
         p.add_argument("--embeddings",action="store_true",help="Explicit model loading; downloads may be required")
-        if command=="publish":p.add_argument("--output",type=Path,default=Path("public/data"))
+        if command=="publish":
+            p.add_argument("--output",type=Path,default=Path("public/data"))
+            p.add_argument("--translations",action="store_true",help="Cache local English translations alongside original evidence")
     p = sub.add_parser("export");p.add_argument("output",type=Path)
     p = sub.add_parser("restore");p.add_argument("archive",type=Path)
     sub.add_parser("status")
@@ -122,9 +137,11 @@ def main(argv=None):
                         if not isinstance(panels,list) or not panels:raise ValueError("Panel must be a nonempty JSON list")
                         jobs=[]
                         for panel in panels:
-                            jobs.extend(plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface))
+                            jobs.extend(plan(panel['countries'],panel['sources'],profile=panel.get('profile','all'),news_surface=args.news_surface,youtube_surface=panel.get('youtubeSurface','search_html')))
                         jobs=list({j.id:j for j in jobs}.values())
-                    else:jobs = plan(countries,sources,profile=args.profile,news_surface=args.news_surface)
+                    else:jobs = plan(countries,sources,profile=args.profile,news_surface=args.news_surface,youtube_surface=args.youtube_surface)
+                    if args.watchlist:
+                        jobs.extend(plan_watches(countries,json.loads(args.watchlist.read_text())))
                     if args.queries:jobs=[j for j in jobs if j.query is None or j.query in args.queries]
                     if args.adapter!="auto":jobs = [replace(j,adapter=args.adapter) for j in jobs]
                     else:jobs=[replace(j,adapter='auto') if j.adapter=='http' else j for j in jobs]
@@ -144,6 +161,8 @@ def main(argv=None):
                         corrections_path=Path('config/topic-corrections.json')
                         corrections=json.loads(corrections_path.read_text()) if corrections_path.exists() else None
                         result['publication']=publish(store,args.publish_output,corrections,args.embeddings)
+                        if args.translations:
+                            result['translations']=refresh_translations(args.publish_output,store)
                     last_window = jobs[0].window if jobs else window_at()
                     if iteration+1<iterations:print(json.dumps(result),flush=True)
             elif args.command=='reextract':
@@ -154,17 +173,25 @@ def main(argv=None):
                 count=0
                 with store.db:
                     for obs in store.rows('observations'):
-                        if obs['status']!='success' or not obs['raw_path']:continue
+                        if not obs['raw_path']:continue
+                        recover=obs['status']!='success' and obs['error']=='blocked_or_empty_extraction' and obs['observed_country']==obs['country']
+                        if obs['status']!='success' and not recover:continue
                         items=parse(gzip.decompress((store.root/obs['raw_path']).read_bytes()),jobs[obs['job_id']],obs['observed_at'])
-                        if not items:raise ValueError('Re-extraction failed; normalized data preserved.')
+                        if not items:
+                            if recover:continue
+                            if jobs[obs['job_id']].surface!='watch_rss':raise ValueError('Re-extraction failed; normalized data preserved.')
                         store.db.execute('DELETE FROM items WHERE observation_id=?',(obs['id'],))
                         for item in items:store.db.execute('INSERT INTO items VALUES(?,?,?)',(item['id'],obs['id'],json.dumps(item,ensure_ascii=False)))
                         store.db.execute('UPDATE observations SET extraction_version=? WHERE id=?',(EXTRACTION_VERSION,obs['id']))
+                        if recover:store.db.execute("UPDATE observations SET status='success',error='recovered_extraction_v3' WHERE id=?",(obs['id'],))
                         count+=1
                 result={'reextracted':count,'extractorVersion':EXTRACTION_VERSION}
             elif args.command in ("summarize","publish"):
                 corrections = json.loads(args.corrections.read_text()) if args.corrections.exists() else None
-                if args.command=="publish":result = publish(store,args.output,corrections,args.embeddings)
+                if args.command=="publish":
+                    result = publish(store,args.output,corrections,args.embeddings)
+                    if args.translations:
+                        result['translations']=refresh_translations(args.output,store)
                 else:
                     recording = build_recording(store,corrections,args.embeddings)
                     result = {"snapshots":len(recording["snapshots"]),"topics":sum(len(s["topics"]) for s in recording["snapshots"]),"clusterVersion":recording["clusterVersion"],"clusterMethod":store.db.execute("SELECT value FROM meta WHERE key='cluster_method'").fetchone()[0]}

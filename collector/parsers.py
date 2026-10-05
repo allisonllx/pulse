@@ -27,7 +27,7 @@ def extract_json(html, marker="ytInitialData"):
 def parse(raw, job, observed_at=None):
     text = raw.decode("utf-8",errors="replace")
     candidates = []
-    if job.surface == "local_rss":
+    if job.surface in {"local_rss","control_rss","watch_rss"}:
         try:
             root = ET.fromstring(text)
         except ET.ParseError:
@@ -35,16 +35,18 @@ def parse(raw, job, observed_at=None):
         for node in root.findall(".//item"):
             candidates.append((node.findtext("title", ""),node.findtext("link", ""),BeautifulSoup(node.findtext("description", ""),"html.parser").get_text(" ",strip=True)))
     elif job.source == "youtube":
-        def walk(obj):
+        def walk(obj,section=""):
             if isinstance(obj,dict):
-                video = obj.get("videoRenderer")
+                shelf=obj.get('shelfRenderer')
+                if shelf:section=''.join(x.get('text','') for x in shelf.get('title',{}).get('runs',[])) or shelf.get('title',{}).get('simpleText','')
+                video = obj.get("videoRenderer") or obj.get('gridVideoRenderer')
                 if video and video.get("videoId"):
                     title = "".join(x.get("text","") for x in video.get("title",{}).get("runs",[])) or video.get("title",{}).get("simpleText","")
-                    candidates.append((title,"https://www.youtube.com/watch?v="+video["videoId"],""))
+                    candidates.append((title,"https://www.youtube.com/watch?v="+video["videoId"],("Shelf: "+section+"; sampled page order") if section else ""))
                 for v in obj.values():
-                    walk(v)
+                    walk(v,section)
             elif isinstance(obj,list):
-                for v in obj: walk(v)
+                for v in obj: walk(v,section)
         walk(extract_json(text))
     else:
         soup = BeautifulSoup(text,"html.parser")
@@ -63,7 +65,25 @@ def parse(raw, job, observed_at=None):
                     url = params.get("q",params.get("url",[""]))[0]
                 parent = heading.find_parent("div")
                 candidates.append((heading.get_text(" ",strip=True),url,parent.get_text(" ",strip=True) if parent else ""))
+        elif job.source == 'instagram':
+            for link in soup.select("a[href*='/p/'],a[href*='/reel/']"):
+                candidates.append((link.get_text(' ',strip=True) or link.get('title',''),urljoin(job.url,link['href']),''))
         else:
+            def tiktok_items(value):
+                if isinstance(value,dict):
+                    author=value.get('author',{})
+                    author=author if isinstance(author,dict) else {}
+                    handle=author.get('uniqueId') or author.get('unique_id')
+                    video_id=value.get('id') or value.get('aweme_id')
+                    caption=value.get('desc')
+                    if handle and video_id and isinstance(caption,str):
+                        candidates.append((caption,'https://www.tiktok.com/@'+str(handle)+'/video/'+str(video_id),''))
+                    for v in value.values():tiktok_items(v)
+                elif isinstance(value,list):
+                    for v in value:tiktok_items(v)
+            for script in soup.select('script#SIGI_STATE,script#__UNIVERSAL_DATA_FOR_REHYDRATION__,script#__NEXT_DATA__'):
+                try:tiktok_items(json.loads(script.string or script.get_text()))
+                except (ValueError,TypeError):pass
             for link in soup.select("a[href*='/video/']"):
                 candidates.append((link.get_text(" ",strip=True) or link.get("title", ""),urljoin(job.url,link["href"]),""))
     seen, items = set(), []

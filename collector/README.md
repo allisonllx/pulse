@@ -1,5 +1,43 @@
 # Worldview collector
 
+## Optional local English translations
+
+Original titles, aliases, item IDs and topic memberships remain unchanged. The
+English display layer is a separate `public/data/translations.json` lookup, with
+the exact source text, recorded source language, model revision and translation
+status. These are machine translations, not new observations.
+
+```sh
+.venv-collector/bin/python -m pip install -e '.[translations]'
+.venv-collector/bin/python -m collector.translations
+# Once the public model is downloaded, forbid all model network access:
+.venv-collector/bin/python -m collector.translations --local-files-only
+# Future publications can refresh the lookup explicitly:
+.venv-collector/bin/python -m collector publish --embeddings --translations
+```
+
+`run --publish-output public/data --translations` refreshes translations after
+each publication. This optional local inference uses no Oxylabs requests or paid
+API credentials. The first use downloads pinned public OPUS-MT models:
+[`opus-mt-ROMANCE-en`](https://huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en)
+at revision `e9ca9975e3972afd80732f08ce01d3a1339f47f8` for French, Spanish and
+Portuguese, and [`opus-mt-de-en`](https://huggingface.co/Helsinki-NLP/opus-mt-de-en)
+at revision `1a922f3b32a8e809e17a47d4b32142d8105924e5` for German. Each exported
+entry identifies its exact model and revision. Subsequent inference is local.
+The separate `.worldview/translations.sqlite` cache avoids translating
+unchanged text again and never changes the evidence database. Use `--input` for
+another recording, `--cache` for another private cache location, or
+`--batch-size` to tune CPU work.
+
+The current display translation coverage is French, Spanish, Portuguese and
+German. A broader multilingual model was tested on public pilot headlines but
+produced misleading or garbled translations, so that model is excluded from
+the export. Other languages keep their originals, and `unsupportedLanguages`
+explicitly reports languages outside the configured translation coverage.
+Failed or empty translations
+are omitted from English entries and reported as failures; no substitute English
+headline is invented. If model loading fails, the previous export is preserved.
+
 This Python package collects evidence locally and publishes the exact v1 interface in `docs/data-contract.md`. Its publisher emits only recording mode: an empty database produces an empty recording, never invented observations. The frontend synthetic demo is maintained separately.
 
 ## Install and offline checks

@@ -35,5 +35,20 @@
       "youtube"
     ],
     "profile": "english"
+  },
+  {
+    "countries": [
+      "SG",
+      "US",
+      "GB",
+      "JP",
+      "IN",
+      "BR"
+    ],
+    "sources": [
+      "youtube"
+    ],
+    "profile": "local",
+    "youtubeSurface": "gaming_discovery"
   }
 ]

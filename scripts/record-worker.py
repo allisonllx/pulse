@@ -16,7 +16,7 @@ mode=sys.argv[1] if len(sys.argv)>1 else 'status'
 pid=active()
 if mode=='start' and not pid:
     with logfile.open('ab') as output:
-        process=subprocess.Popen([str(root/'.venv-collector/bin/python'),'-u','-m','collector','run','--panel','config/recording-panel.json','--adapter','http','--windows','60','--publish-output','public/data','--embeddings'],cwd=root,stdin=subprocess.DEVNULL,stdout=output,stderr=output,start_new_session=True)
+        process=subprocess.Popen([str(root/'.venv-collector/bin/python'),'-u','-m','collector','run','--panel','config/recording-panel.json','--adapter','http','--windows','60','--publish-output','public/data','--embeddings','--translations','--watchlist','config/watch-topics.json'],cwd=root,stdin=subprocess.DEVNULL,stdout=output,stderr=output,start_new_session=True)
     pid=process.pid;pidfile.write_text(str(pid))
     print(f'Recorder started: PID {pid}; log {logfile}. Requires this machine awake and connected. Stops at configured expiry or budget cap.')
 elif mode=='stop' and pid:

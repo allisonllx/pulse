@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Choose a country and observation profile, inspect a shop, compare another country, or scrub the timeline. The **AI lens** filters technology/model topics. Mobile and WebGL-unavailable browsers get a list view. Reduced motion shows customers without animation.
+Open http://localhost:3000. Choose a country and observation profile, inspect a shop, compare another country, or scrub the timeline. Click a shop or topic to focus it: other shops dim and a warm spotlight appears. Clear shop focus restores the full city. The Trends button opens rank-weighted cluster prominence, comparable-sample change, country/time matrices, and observed detection cohorts. Shared and distinctive comparison topics are clickable. The **AI lens** filters technology/model topics. Mobile and WebGL-unavailable browsers get a list view. Reduced motion shows customers without animation.
 
 The checked-in demonstration is visibly synthetic. `public/data/demo-manifest.json` always opens that separate recording; `public/data/manifest.json` points to the published dataset. Live collection never fabricates missing observations. A newly published real recording replaces the default demonstration, with a button to explore the demo separately.
 
@@ -46,9 +46,13 @@ python3 scripts/record-worker.py stop
 
 Collection windows start at 00:00, 06:00, 12:00, and 18:00 UTC (08:00, 14:00, 20:00, 02:00 SGT). The worker stops after its bounded windows, on expiry, or when budget admission fails. Restarting never backfills an old time window with a new page. Missed jobs remain visible gaps.
 
+English translations for French, Spanish, Portuguese and German are precomputed with pinned local models. The language toggle preserves originals alongside translated evidence; other languages retain their original text. Translation failures preserve the recording and never stop harvesting. The watcher polls translation updates separately.
+
+The validated worker also collects local YouTube Gaming discovery where available and tracks the exact phrase **cornell 7** using `config/watch-topics.json` in the six-country panel. Gaming ranks mean sampled order within public shelves, not a global popularity ranking. Cornell series exclude query noise without Cornell named in the title. Queries are a separate signal from semantic topic clusters.
+
 Local news uses a **regional Google News RSS surface**, explicitly identified as `local_rss`; it does not claim to reproduce a personalized homepage. `--news-surface local_html` enables the public page experiment. English controls use five fixed queries: AI agents, AI coding tools, latest AI models, music, gaming. Google/YouTube region settings remain US, with English language, while the proxy country changes. India defaults to Hindi, Malaysia to Malay for local profiles; these are selected views, not a claim to represent every local language.
 
-Source reliability is determined by real probes. Google Search/TikTok can remain blocked; failures are preserved. The automatic adapter tries HTTP before bounded browser fallback for compatible failures. `--adapter http` is suitable for the validated, cheaper core. Promotion requires consecutive successful collection windows; a single pilot is not enough.
+Source reliability is determined by real probes. The initial TikTok browser filter blocked ttwstatic.com scripts; a corrected probe rendered Page not available. Instagram public keyword search yielded no extractable posts. A Creative Center probe failed transport and is inconclusive. These experiments do not establish that those platforms are impossible to collect. Residential credentials do not imply access to Oxylabs Web Scraper API or Browser products. A fixed-US-edition News feed probe across SG/US overlapped18 of20results; this is exploratory, not evidence of an IP effect. Google Search/TikTok can remain blocked; failures are preserved. The automatic adapter tries HTTP before bounded browser fallback for compatible failures. `--adapter http` is suitable for the validated, cheaper core. Promotion requires consecutive successful collection windows; a single pilot is not enough.
 
 ## Analyze, publish, and preserve
 

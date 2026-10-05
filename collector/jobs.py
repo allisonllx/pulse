@@ -32,11 +32,11 @@ class Job:
 
     @property
     def settings(self):
-        return {"hl": self.language, "gl": self.country if self.profile == "local" else "US",
+        return {"hl": self.language, "gl": None if self.source in {"instagram","tiktok"} else self.country if self.profile == "local" else "US",
                 "acceptLanguage": self.language, "loggedIn": False, "personalization": False}
 
 
-def plan(countries, sources, window=None, profile="all", news_surface="local_rss"):
+def plan(countries, sources, window=None, profile="all", news_surface="local_rss",youtube_surface="search_html"):
     if news_surface not in ("local_rss", "local_html"):
         raise ValueError("News surface must be local_rss or local_html")
     jobs = []
@@ -46,25 +46,39 @@ def plan(countries, sources, window=None, profile="all", news_surface="local_rss
         for source in sources:
             if source not in CAPABILITIES:
                 raise ValueError("Unknown source: " + source)
-            source_profile = CAPABILITIES[source]["profile"]
+            source_profile = "local" if source=="youtube" and youtube_surface=="gaming_discovery" else CAPABILITIES[source]["profile"]
             if profile not in ("all", source_profile):
                 continue
             lang = COUNTRIES[country][2] if source_profile == "local" else "en"
-            queries = [None] if source == "google_news" else QUERIES
-            if source == "tiktok":
+            queries = [None] if source == "google_news" or (source=="youtube" and youtube_surface=="gaming_discovery") else QUERIES
+            if source in {"tiktok","instagram"}:
                 # Experimental capability is a single bounded probe per invocation.
-                if any(j.source == "tiktok" for j in jobs):
+                if any(j.source == source for j in jobs):
                     continue
                 queries = [QUERIES[0]]
             for query in queries:
-                surface = news_surface if source == "google_news" else CAPABILITIES[source]["surfaces"][0]
+                surface = news_surface if source == "google_news" else youtube_surface if source=="youtube" else CAPABILITIES[source]["surfaces"][0]
                 if source == "google_news":
                     url = "https://news.google.com/" + ("rss?" if surface == "local_rss" else "?") + urlencode({"hl":lang, "gl":country, "ceid":country+":"+lang})
                 elif source == "google_search":
                     url = "https://www.google.com/search?" + urlencode({"q":query, "hl":"en", "gl":"us", "pws":"0", "num":"20"})
                 elif source == "youtube":
-                    url = "https://www.youtube.com/results?" + urlencode({"search_query":query, "hl":"en", "gl":"US"})
+                    url = ("https://www.youtube.com/gaming?"+urlencode({'hl':lang,'gl':country})) if youtube_surface=='gaming_discovery' else "https://www.youtube.com/results?" + urlencode({"search_query":query, "hl":"en", "gl":"US"})
+                elif source == 'instagram':
+                    url = 'https://www.instagram.com/explore/search/keyword/?'+urlencode({'q':query})
                 else:
                     url = "https://www.tiktok.com/search?" + urlencode({"q":query, "lang":"en"})
                 jobs.append(Job(country, window or window_at(), source_profile, source, surface, query, url, lang, CAPABILITIES[source]["adapter"]))
+    return jobs
+
+
+def plan_watches(countries,queries,window=None):
+    jobs=[]
+    for country in countries:
+        if country not in COUNTRIES:raise ValueError('Unknown country: '+country)
+        language=COUNTRIES[country][2]
+        for query in queries:
+            if not isinstance(query,str) or not query.strip() or len(query)>160:raise ValueError('Invalid watch query')
+            url='https://news.google.com/rss/search?'+urlencode({'q':'"'+query.strip()+'"','hl':language,'gl':country,'ceid':country+':'+language})
+            jobs.append(Job(country,window or window_at(),'local','google_news','watch_rss',query.strip(),url,language))
     return jobs

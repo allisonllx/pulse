@@ -13,6 +13,22 @@ try {
   const recording=JSON.parse(fs.readFileSync('out'+manifest.recordingUrl));
   await page.goto('http://127.0.0.1:3101');
   await page.locator('[data-resident-count]').waitFor({timeout:30000});
+  await page.locator('.topic-row').first().click();
+  assert.notEqual(await page.locator('[data-focused-topic]').getAttribute('data-focused-topic'),'');
+  await page.screenshot({path:'artifacts/refined-city.png'});
+  await page.getByRole('button',{name:'Clear shop focus'}).click();
+  assert.equal(await page.locator('[data-focused-topic]').getAttribute('data-focused-topic'),'');
+  await page.getByRole('button',{name:'Trends view',exact:true}).click();
+  await page.getByRole('button',{name:'Tracked query: cornell 7',exact:true}).click();
+  await page.locator('.journey-scroll').getByRole('button',{name:'United States'}).click();
+  assert.equal(await page.locator('.topic-journey h4').first().innerText(),'Tracked query: cornell 7');
+  await page.screenshot({path:'artifacts/refined-trends.png'});
+  await page.locator('#country').selectOption('FR');
+  await page.getByRole('button',{name:'List view',exact:true}).click();
+  await page.locator('.topic-detail .original-text').first().waitFor();
+  await page.screenshot({path:'artifacts/refined-translations.png'});
+  await page.locator('#country').selectOption('SG');
+  await page.getByRole('button',{name:'City view',exact:true}).click();
   await page.getByRole('button',{name:'English control',exact:true}).click();
   const snapshot=recording.snapshots.find(s=>s.country==='SG'&&s.profile==='english');
   const expected=[...snapshot.topics].sort((a,b)=>b.count-a.count||a.id.localeCompare(b.id)).slice(0,48).reduce((n,t)=>n+t.items.length,0);
@@ -28,5 +44,5 @@ try {
   await page.getByRole('button',{name:'Next snapshot'}).click();
   await page.waitForTimeout(300);
   assert.deepEqual(errors,[]);
-  console.log('Production static server: real visitors, profile/country switches, list fallback and synthetic replay passed without collector access.');
+  console.log('Production static server: spotlight, watched-topic navigation, French translation, real visitors, profiles, list fallback and replay passed without collector access.');
 } finally { await browser?.close();server.kill(); }

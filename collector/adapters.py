@@ -120,7 +120,15 @@ class HTTPAdapter:
                     result["raw"] = raw
                     result["observedAt"] = utcnow()
                     items = parse(raw,job,result["observedAt"])
-                    if not items: raise FetchError("blocked_or_empty_extraction")
+                    if not items:
+                        valid_empty=False
+                        if job.surface=='watch_rss':
+                            import xml.etree.ElementTree as ET
+                            try:
+                                root=ET.fromstring(raw)
+                                valid_empty=root.tag=='rss' and root.find('channel') is not None and not root.findall('.//item')
+                            except ET.ParseError:pass
+                        if not valid_empty:raise FetchError("blocked_or_empty_extraction")
                     result["status"] = "success"
                     result["bytes"] = self.store.job_spent(job.id)-start
                     return result,items
@@ -159,13 +167,13 @@ class PlaywrightAdapter(HTTPAdapter):
                     requests[0] += 1
                     count[0] += len(route.request.url.encode())+1024
                     host = urlsplit(route.request.url).hostname or ""
-                    allowed = {"google_news":("google.com","gstatic.com"),"google_search":("google.com","gstatic.com"),"youtube":("youtube.com","googlevideo.com","ytimg.com","google.com"),"tiktok":("tiktok.com","tiktokcdn.com")}[job.source]
+                    allowed = {"google_news":("google.com","gstatic.com"),"google_search":("google.com","gstatic.com"),"youtube":("youtube.com","googlevideo.com","ytimg.com","google.com"),"instagram":("instagram.com","cdninstagram.com","fbcdn.net"),"tiktok":("tiktok.com","tiktokcdn.com","ttwstatic.com","ibytedtos.com","byteoversea.com","ibyteimg.com")}[job.source]
                     if count[0]>=BROWSER_CAP or requests[0]>40 or route.request.resource_type in {"image","media","font"} or not any(host==d or host.endswith("."+d) for d in allowed):
                         route.abort()
                     else: route.continue_()
                 context.route("**/*",route_request)
                 page.goto(job.url,wait_until="domcontentloaded",timeout=25000)
-                page.wait_for_timeout(1500)
+                page.wait_for_timeout(7000 if job.source=='tiktok' else 1500)
                 raw = page.content().encode()
                 if len(raw)>BROWSER_CAP:raise FetchError("response_too_large")
                 browser.close()
