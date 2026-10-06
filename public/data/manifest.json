@@ -18,19 +18,20 @@
     "US"
   ],
   "coverage": {
-    "successful": 362,
-    "failed": 181
+    "successful": 432,
+    "failed": 186
   },
-  "datasetVersion": "28d9a0ca56daf6b495e931fe",
-  "generatedAt": "2026-10-06T01:56:25.957911Z",
+  "datasetVersion": "64b342b600931a8e02040b36",
+  "generatedAt": "2026-10-06T06:08:59.549455Z",
   "mode": "recording",
-  "recordingUrl": "/data/28d9a0ca56daf6b495e931fe/recording.json",
+  "recordingUrl": "/data/64b342b600931a8e02040b36/recording.json",
   "schemaVersion": 1,
   "windows": [
     "2026-10-05T00:00:00Z",
     "2026-10-05T06:00:00Z",
     "2026-10-05T12:00:00Z",
     "2026-10-05T18:00:00Z",
-    "2026-10-06T00:00:00Z"
+    "2026-10-06T00:00:00Z",
+    "2026-10-06T06:00:00Z"
   ]
 }
