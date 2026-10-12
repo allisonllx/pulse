@@ -28,7 +28,7 @@ def extract_json(html, marker="ytInitialData"):
 def parse(raw, job, observed_at=None):
     text = raw.decode("utf-8",errors="replace")
     candidates = []
-    if job.surface in {"local_rss","control_rss","watch_rss"}:
+    if job.surface in {"local_rss","control_rss","watch_rss","scan_news"}:
         try:
             root = ET.fromstring(text)
         except ET.ParseError:
@@ -37,7 +37,7 @@ def parse(raw, job, observed_at=None):
             candidates.append((node.findtext("title", ""),node.findtext("link", ""),BeautifulSoup(node.findtext("description", ""),"html.parser").get_text(" ",strip=True)))
     elif job.source == "youtube":
         data=extract_json(text)
-        if job.surface in {'discovery_week_popular','broad_week_popular'}:
+        if job.surface in {'discovery_week_popular','broad_week_popular','scan_video'}:
             selected=set()
             def filters(value):
                 if isinstance(value,dict):
@@ -83,7 +83,7 @@ def parse(raw, job, observed_at=None):
                 if url.startswith("/url?"):
                     params = parse_qs(urlsplit(url).query)
                     url = params.get("q",params.get("url",[""]))[0]
-                parent = heading.find_parent("div")
+                parent = heading.find_parent("div",class_="MjjYud") or heading.find_parent("div",class_="g") or heading.find_parent("div")
                 candidates.append((heading.get_text(" ",strip=True),url,parent.get_text(" ",strip=True) if parent else ""))
         elif job.source == 'bing':
             for result in soup.select('li.b_algo'):
@@ -121,14 +121,20 @@ def parse(raw, job, observed_at=None):
             for link in soup.select("a[href*='/video/']"):
                 candidates.append((link.get_text(" ",strip=True) or link.get("title", ""),urljoin(job.url,link["href"]),""))
     seen, items = set(), []
-    for title,url,snippet in candidates:
+    for position,(title,url,snippet) in enumerate(candidates,1):
         url = canonical_url(url)
         if not title.strip() or not url or url in seen: continue
+        evidence = None
+        if job.surface.startswith('scan_'):
+            from .scans import discovery_evidence
+            evidence = discovery_evidence(job,title,url,snippet)
+            if evidence is None:continue
         seen.add(url)
         items.append({"id":hashlib.sha256(url.encode()).hexdigest()[:24], "title":title.strip(), "url":url,
-                      "rank":len(items)+1,"source":job.source,"surface":job.surface,"query":job.query,
+                      "rank":position if evidence is not None else len(items)+1,"source":job.source,"surface":job.surface,"query":job.query,
                       "language":job.language,"snippet":snippet[:1200],"observationId":job.id,
                       "observedAt":observed_at or utcnow()})
+        if evidence is not None:items[-1]['discovery']=evidence
         if job.surface=='broad_week_popular':
             from .discovery import query_category
             items[-1]['discoveryCategory']=query_category(job.query) or 'other'

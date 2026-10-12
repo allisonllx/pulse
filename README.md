@@ -106,3 +106,7 @@ The expanded Bing pilot was rejected after manual relevance review: site-limited
 Bing baseline quarantine (October 5): mismatched responses included Amy Taylor LinkedIn profiles for gaming and cancer-treatment papers for AI coding tools. Bing is excluded from the recurring panel and normalized city/trend data pending relevance diagnosis. Raw evidence and the pre-quarantine archive remain preserved; failed coverage does not generate departures. See docs/search-discovery.md.
 
 The current balanced `broad-v2` catalog rotates sports, music, film/TV, gaming, culture, science/technology and public affairs. Main English panels keep three broad slots and two AI anchors; DE/FR/MX sample two broad slots. SG/JP/BR additionally collect three local-profile broad queries. Country pairing, week/popularity filters, original-language evidence and missing-sample handling remain explicit. See [search discovery](docs/search-discovery.md) for the full phrase catalog and pilot findings.
+
+### On-demand geographic keyword scans
+
+Run `npm run scan:serve` to collect live keyword scans locally, with indexed social queries, visible progress, country comparisons and saved snapshots. See [the live scan runbook](docs/live-scans.md) for startup, evidence interpretation and verified source limitations.

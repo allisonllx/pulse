@@ -1,0 +1,331 @@
+{
+  "version": "market-concepts-v1",
+  "defaultCountries": [
+    "US",
+    "SG",
+    "JP",
+    "KR"
+  ],
+  "concepts": [
+    {
+      "id": "short-dramas",
+      "vertical": "Entertainment",
+      "label": "Short dramas",
+      "aliases": [
+        {
+          "term": "short drama",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "microdrama",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "vertical drama",
+          "kind": "format"
+        }
+      ],
+      "question": "Which story genres, episode lengths and payment models could travel?"
+    },
+    {
+      "id": "live-shopping",
+      "vertical": "Commerce",
+      "label": "Livestream shopping",
+      "aliases": [
+        {
+          "term": "livestream shopping",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "live commerce",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "直播带货",
+          "kind": "vocabulary"
+        }
+      ],
+      "question": "Which product categories, hosts and selling mechanics could translate?"
+    },
+    {
+      "id": "bubble-tea",
+      "vertical": "Food & drinks",
+      "label": "Bubble tea & boba",
+      "aliases": [
+        {
+          "term": "bubble tea",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "boba",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "珍珠奶茶",
+          "kind": "vocabulary"
+        }
+      ],
+      "question": "Which flavours, store formats and positioning need local adaptation?"
+    },
+    {
+      "id": "matcha",
+      "vertical": "Food & drinks",
+      "label": "Matcha rituals",
+      "aliases": [
+        {
+          "term": "matcha latte",
+          "kind": "variant"
+        },
+        {
+          "term": "ceremonial matcha",
+          "kind": "variant"
+        },
+        {
+          "term": "matcha dessert",
+          "kind": "variant"
+        }
+      ],
+      "question": "Is the opportunity a drink, a ritual or an ingredient?"
+    },
+    {
+      "id": "head-spa",
+      "vertical": "Beauty",
+      "label": "Head spas",
+      "aliases": [
+        {
+          "term": "head spa",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "scalp treatment",
+          "kind": "variant"
+        },
+        {
+          "term": "ヘッドスパ",
+          "kind": "vocabulary"
+        }
+      ],
+      "question": "How could the treatment experience fit local beauty routines?"
+    },
+    {
+      "id": "skincare",
+      "vertical": "Beauty",
+      "label": "Portable skincare",
+      "aliases": [
+        {
+          "term": "sunscreen stick",
+          "kind": "variant"
+        },
+        {
+          "term": "pimple patch",
+          "kind": "variant"
+        },
+        {
+          "term": "refillable skincare",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which routines and packaging formats solve a local need?"
+    },
+    {
+      "id": "fitness",
+      "vertical": "Fitness",
+      "label": "Fitness communities",
+      "aliases": [
+        {
+          "term": "reformer Pilates",
+          "kind": "variant"
+        },
+        {
+          "term": "run club",
+          "kind": "variant"
+        },
+        {
+          "term": "recovery studio",
+          "kind": "variant"
+        }
+      ],
+      "question": "What makes the community or format repeatable in another market?"
+    },
+    {
+      "id": "carsharing",
+      "vertical": "Mobility",
+      "label": "Access over car ownership",
+      "aliases": [
+        {
+          "term": "carsharing",
+          "kind": "vocabulary"
+        },
+        {
+          "term": "car subscription",
+          "kind": "format"
+        },
+        {
+          "term": "カーシェア",
+          "kind": "vocabulary"
+        }
+      ],
+      "question": "How do density, parking and ownership habits change the model?"
+    },
+    {
+      "id": "convenience",
+      "vertical": "Convenience",
+      "label": "Everyday convenience",
+      "aliases": [
+        {
+          "term": "instant grocery",
+          "kind": "variant"
+        },
+        {
+          "term": "laundry pickup",
+          "kind": "variant"
+        },
+        {
+          "term": "parcel locker",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which convenience problems justify local delivery costs?"
+    },
+    {
+      "id": "collectibles",
+      "vertical": "Collectibles",
+      "label": "Collectibles & fandom",
+      "aliases": [
+        {
+          "term": "blind box",
+          "kind": "variant"
+        },
+        {
+          "term": "designer toy",
+          "kind": "variant"
+        },
+        {
+          "term": "trading card",
+          "kind": "variant"
+        }
+      ],
+      "question": "Does the appeal travel through characters, collecting or community?"
+    },
+    {
+      "id": "pets",
+      "vertical": "Pets",
+      "label": "Pet lifestyles",
+      "aliases": [
+        {
+          "term": "pet cafe",
+          "kind": "variant"
+        },
+        {
+          "term": "fresh pet food",
+          "kind": "variant"
+        },
+        {
+          "term": "pet stroller",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which pet-owner routines could support a new format?"
+    },
+    {
+      "id": "home",
+      "vertical": "Home",
+      "label": "Compact & automated homes",
+      "aliases": [
+        {
+          "term": "robot vacuum",
+          "kind": "variant"
+        },
+        {
+          "term": "compact appliance",
+          "kind": "variant"
+        },
+        {
+          "term": "modular furniture",
+          "kind": "variant"
+        }
+      ],
+      "question": "How do local housing sizes and habits change the product?"
+    },
+    {
+      "id": "travel",
+      "vertical": "Travel",
+      "label": "New stay formats",
+      "aliases": [
+        {
+          "term": "capsule hotel",
+          "kind": "variant"
+        },
+        {
+          "term": "glamping",
+          "kind": "variant"
+        },
+        {
+          "term": "workation",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which stay formats suit local travellers and locations?"
+    },
+    {
+      "id": "education",
+      "vertical": "Education",
+      "label": "Learning formats",
+      "aliases": [
+        {
+          "term": "AI tutor",
+          "kind": "variant"
+        },
+        {
+          "term": "study cafe",
+          "kind": "variant"
+        },
+        {
+          "term": "cohort course",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which learning habits and payment models need adaptation?"
+    },
+    {
+      "id": "business-tools",
+      "vertical": "Work & software",
+      "label": "Small-business tools",
+      "aliases": [
+        {
+          "term": "AI receptionist",
+          "kind": "variant"
+        },
+        {
+          "term": "WhatsApp commerce",
+          "kind": "variant"
+        },
+        {
+          "term": "restaurant software",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which workflows and communication channels are locally important?"
+    },
+    {
+      "id": "circular",
+      "vertical": "Circular consumption",
+      "label": "Reuse & access",
+      "aliases": [
+        {
+          "term": "clothing rental",
+          "kind": "variant"
+        },
+        {
+          "term": "refurbished electronics",
+          "kind": "variant"
+        },
+        {
+          "term": "refill store",
+          "kind": "variant"
+        }
+      ],
+      "question": "Which products support trust, reuse and viable local logistics?"
+    }
+  ]
+}

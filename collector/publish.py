@@ -21,13 +21,27 @@ def topic_category(label,items):
     return {'film_tv':'culture','science_tech':'technology','public_affairs':'news'}.get(hint,hint)
 
 
-def build_recording(store,corrections=None,embeddings=False):
-    observations = sorted(store.rows("observations"),key=lambda r:(r["window"],r["country"],r["profile"],r["source"],r["surface"],r["query"] or ""))
-    all_items = [json.loads(r["payload"]) for r in store.rows("items")]
+def build_recording(store,corrections=None,embeddings=False,observation_ids=None):
+    observations = sorted([r for r in store.rows("observations") if (r['id'] in observation_ids if observation_ids is not None else not r['surface'].startswith('scan_'))],key=lambda r:(r["window"],r["country"],r["profile"],r["source"],r["surface"],r["query"] or ""))
+    selected_ids={r['id'] for r in observations}
+    all_items = [json.loads(r["payload"]) for r in store.rows("items") if r['observation_id'] in selected_ids]
     by_observation = defaultdict(list)
     for item in all_items: by_observation[item["observationId"]].append(item)
-    engine = TopicEngine(store,corrections,embeddings)
-    mapping,topics = engine.assign(all_items)
+    if observation_ids is None:
+        engine = TopicEngine(store,corrections,embeddings)
+        mapping,topics = engine.assign(all_items)
+    else:
+        # A keyword snapshot has its own first-seen times and clustering history.
+        # Keep on-demand navigation from changing the scheduled panel's memberships.
+        import sqlite3
+        from types import SimpleNamespace
+        from .store import SCHEMA
+        db=sqlite3.connect(':memory:');db.row_factory=sqlite3.Row
+        try:
+            db.executescript(SCHEMA)
+            engine=TopicEngine(SimpleNamespace(db=db),corrections,embeddings)
+            mapping,topics=engine.assign(all_items)
+        finally:db.close()
     snapshots = {}
     previous = {}
     for obs in observations:

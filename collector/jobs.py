@@ -41,6 +41,10 @@ class Job:
         if self.source=='tiktok' and self.surface.startswith('creative_center'):
             from urllib.parse import urlsplit,parse_qs
             settings['platformRegion']=parse_qs(urlsplit(self.url).query).get('region',[None])[0]
+        if self.surface.startswith('scan_'):
+            settings.update({'gl':self.country if self.surface=='scan_news' else 'US' if self.surface=='scan_video' else None,
+                             'querySet':'keyword-v1','geographyBasis':'edition-and-ip' if self.surface=='scan_news' else 'verified-residential-ip'})
+            if self.surface=='scan_video':settings.update({'uploadDateFilter':'this_week','sort':'platform_popularity'})
         return settings
 
 

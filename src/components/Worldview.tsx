@@ -1,10 +1,13 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { Component, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, Box, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Database, Globe2, Layers3, List, LoaderCircle, Maximize2, Pause, Play, Search, Sparkles, Languages, ChartNoAxesCombined, X } from 'lucide-react';
 import Atlas from './Atlas';
 import Trends from './Trends';
 import CoveragePanel from './CoveragePanel';
+import ScanExplorer from './ScanExplorer';
+import SignalOverlap from './SignalOverlap';
+import { topicSignals } from '@/lib/signal-overlap';
 import { useTranslations } from '@/lib/translations';
 import { compareSnapshots, Country, dateLabel, filterTopics, Manifest, PLATFORMS, Profile, readRecording, Recording, safeUrl, snapshotAt, Source, success, Topic } from '@/lib/recording';
 import { visibleEvents } from '@/lib/visitors';
@@ -16,7 +19,9 @@ class CityBoundary extends Component<{ children: ReactNode; onFailure: () => voi
   render() { return this.state.failed ? null : this.props.children; }
 }
 export default function Worldview() {
-  const [recording, setRecording] = useState<Recording | null>(null);
+  const [publishedRecording, setRecording] = useState<Recording | null>(null);
+  const [scanRecording,setScanRecording] = useState<Recording|null>(null);
+  const recording=scanRecording??publishedRecording;
   const [country, setCountry] = useState('SG'), [profile, setProfile] = useState<Profile>('local');
   const [windowIndex, setWindowIndex] = useState(0), [selected, setSelected] = useState<string | null>(null);
   const [platform, setPlatform] = useState<Source | 'all'>('all'), [ai, setAi] = useState(false), [query, setQuery] = useState('');
@@ -27,6 +32,17 @@ export default function Worldview() {
   const text=translations.text;
   const version = useRef('');
   const recordingRef = useRef<Recording | null>(null);
+  const scanActiveRef=useRef(false), scanKey=useRef('');
+  scanActiveRef.current=Boolean(scanRecording);
+  const showScan = useCallback((data:Recording)=>{
+    setScanRecording(data);
+    if(scanKey.current!==data.windows[0]){
+      scanKey.current=data.windows[0]??'';
+      setProfile('english');setPlatform('all');setAi(false);setQuery('');setSelected(null);setPlaying(false);setWindowIndex(0);
+      setCountry(c=>data.countries.some(x=>x.code===c)?c:data.countries[0]?.code??'SG');
+    }
+  },[]);
+  const exitScan = useCallback(()=>{scanKey.current='';setScanRecording(null);setProfile('local');setWindowIndex(0);setSelected(null);},[]);
   useEffect(() => {
     const media = matchMedia('(prefers-reduced-motion: reduce)'); const update = () => setReduced(media.matches); update(); media.addEventListener('change', update);
     const probe = document.createElement('canvas'); if (matchMedia('(max-width: 620px)').matches || (!probe.getContext('webgl2') && !probe.getContext('webgl'))) setView('list');
@@ -49,12 +65,12 @@ export default function Worldview() {
         if (active) {
           const prior = recordingRef.current; recordingRef.current=data;
           version.current = key; setRecording(data); setError(''); setUpdated(n=>n+1);
-          setCountry(c => data.countries.some(x=>x.code===c)?c:data.countries[0]?.code??'SG');
+          if(!scanActiveRef.current){setCountry(c => data.countries.some(x=>x.code===c)?c:data.countries[0]?.code??'SG');
           setWindowIndex(i => {
             if ((!prior && data.mode==='recording') || (prior && prior.mode===data.mode && i===prior.windows.length-1)) return Math.max(0,data.windows.length-1);
             const oldFrame=prior?.windows[i];const next=oldFrame?data.windows.indexOf(oldFrame):-1;
             return next>=0?next:Math.min(i,Math.max(0,data.windows.length-1));
-          });
+          });}
         }
       } catch (e) { if (active && !(e instanceof Error && e.name==='AbortError')) setError(e instanceof Error ? e.message : 'Could not load recording.'); }
     }
@@ -88,13 +104,14 @@ export default function Worldview() {
   const comparison = recording && window ? compareSnapshots(snapshot,snapshotAt(recording,other,window,profile),ai,platform) : null;
   function chooseCountry(code:string) { setCountry(code); setSelected(null); if(code===other) setOther(recording?.countries.find(c=>c.code!==code)?.code??'US'); }
   function togglePlay() { if (!playing && windowIndex >= (recording?.windows.length??1)-1) setWindowIndex(0); setPlaying(v=>!v); }
-  if (!recording) return <main className="boot"><Globe2 size={42}/><h1>Pulse</h1><p>{error||'Opening a little world of internet attention…'}</p>{error&&<button onClick={()=>setDemoOverride(true)}>Explore demonstration</button>}</main>;
+  if (!recording) return <main className="worldview"><header className="topbar"><span className="brand">pulse.</span></header><ScanExplorer onRecording={showScan} onExit={exitScan}/><div className="boot"><Globe2 size={42}/><h1>Pulse</h1><p>{error||'Opening a little world of internet attention…'}</p>{error&&<button onClick={()=>setDemoOverride(true)}>Explore demonstration</button>}</div></main>;
   return <main className="worldview">
     <header className="topbar">
       <a className="brand" href="/" aria-label="Pulse home"><span className="brand-mark"><Globe2 size={23}/></span>pulse<span className="brand-dot">.</span></a>
       <span className="brand-note">THE INTERNET, FROM EVERYWHERE.</span>
       <div className="top-actions"><span className="recording-status"><i/>{recording.mode==='demo'?'DEMONSTRATION':'RECORDED OBSERVATIONS'}</span><button className="icon-button" onClick={()=>setMethod(true)} aria-label="About this recording"><Database size={17}/></button></div>
     </header>
+    <ScanExplorer onRecording={showScan} onExit={exitScan}/>
     <div className="workspace">
       <aside className="left-panel">
         <div className="section-kicker"><Globe2 size={13}/> YOUR VIEWPOINT</div>
@@ -130,10 +147,10 @@ export default function Worldview() {
           {view==='trends'?<Trends recording={recording} snapshot={snapshot} profile={profile} source={platform} window={window??''} ai={ai} topicId={selected} onTopic={setSelected} onCountry={(code,topic)=>{chooseCountry(code);setSelected(topic);}} text={text}/>:topics.length===0&&(view!=='city'||!events.some(e=>e.kind==='departure'))?<div className="empty-state"><Layers3 size={32}/><h3>No observations in this view</h3><p>{snapshot?'Try another platform, lens, or search.':'No sample was collected for this country and time.'}</p><button onClick={()=>{setPlatform('all');setAi(false);setQuery('');}}>Clear filters</button></div>:view==='city'?<CityBoundary onFailure={()=>setView('list')}><City allTopics={cityTopics.map(t=>({...t,label:translations.entries.get(t.label)??t.label}))} visible={cityVisible.map(t=>({...t,label:text(t.label)}))} selected={selected&&cityVisible.some(t=>t.id===selected)?selected:null} events={events} onSelect={setSelected} reduced={reduced} animate={!reduced} frameKey={`${country}-${profile}-${window}-${updated}`}/></CityBoundary>:<div className="list-view">{topics.map(t=><button className={`topic-card ${activeTopic?.id===t.id?'selected':''}`} key={t.id} onClick={()=>setSelected(t.id)}><span className="topic-category">{t.category}</span><h3>{text(t.label)}</h3><span>{t.count} sampled appearances</span><div className="mini-bars">{PLATFORMS.map(p=><i key={p.id} style={{background:p.color,flex:t.items.filter(i=>i.source===p.id).length||.01}}/>)}</div></button>)}</div>}
         </div>
         <div className="city-bottom"><div className="city-instructions"><Maximize2 size={13}/>{view==='city'?'Drag to orbit · scroll to zoom · click a shop':view==='trends'?'Observed topic histories · collection gaps preserved':'Select a topic to inspect its evidence'}</div><div className="city-legend"><span><i className="legend-shop"/>Topic = shop</span><span><i className="legend-person"/>Result = visitor</span></div></div>
-        <div className="stats-strip"><div><span>TOPICS IN VIEW</span><strong>{topics.length.toString().padStart(2,'0')}</strong></div><div><span>SAMPLED APPEARANCES</span><strong>{appearances}<small>results</small></strong></div><div><span>COLLECTION COVERAGE</span><strong>{successful.length}<small>/ {snapshot?.coverage.length??0} surfaces</small></strong></div><button className={compare?'active':''} onClick={()=>setCompare(!compare)}><Globe2 size={16}/><span>Compare viewpoints</span><ArrowRight size={15}/></button></div>
+        <div className="stats-strip"><div><span>TOPICS IN VIEW</span><strong>{topics.length.toString().padStart(2,'0')}</strong></div><div><span>SAMPLED APPEARANCES</span><strong>{appearances}<small>results</small></strong></div><div><span>COLLECTION COVERAGE</span><strong>{successful.length}<small>/ {snapshot?.coverage.length??0} surfaces</small></strong></div><button disabled={recording.countries.length<2} className={compare?'active':''} onClick={()=>setCompare(!compare)}><Globe2 size={16}/><span>Compare viewpoints</span><ArrowRight size={15}/></button></div>
       </section>
       <aside className="right-panel">
-        {compare?<><div className="section-kicker"><Globe2 size={13}/> ACROSS THE WORLD<button className="close-small" onClick={()=>setCompare(false)} aria-label="Close comparison"><X size={14}/></button></div><h2>A different<br/>window.</h2><label className="select-label" htmlFor="compare-country">COMPARE WITH</label><select id="compare-country" className="compare-select" value={other} onChange={e=>setOther(e.target.value)}>{recording.countries.filter(c=>c.code!==country).map(c=><option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</select><div className="overlap"><strong>{comparison?.overlap==null?'—':`${Math.round(comparison.overlap*100)}%`}</strong><span>topic overlap</span></div><p className="profile-note">{comparison?`${comparison.commonSurfaces} matching successful surfaces. ${comparison.leftCoverage} vs ${comparison.rightCoverage} available.`:'No comparable successful samples for these settings.'}</p>{comparison&&<><div className="divider"/><div className="section-kicker">SHARED TOPICS · {comparison.shared.length}</div>{comparison.shared.slice(0,8).map(id=><button className="shared-topic" key={id} onClick={()=>{setSelected(id);setCompare(false);}}>{text(snapshot?.topics.find(t=>t.id===id)?.label??id)}<ArrowUpRight size={13}/></button>)}<div className="comparison-counts"><span>{comparison.leftOnly.length} only here</span><span>{comparison.rightOnly.length} only there</span></div><div className="section-kicker">DISTINCTIVE HERE</div>{comparison.leftOnly.slice(0,6).map(id=><button className="shared-topic" key={id} onClick={()=>{setSelected(id);setCompare(false);setView('trends');}}>{text(snapshot?.topics.find(t=>t.id===id)?.label??id)}</button>)}<div className="section-kicker">DISTINCTIVE THERE</div>{comparison.rightOnly.slice(0,6).map(id=><button className="shared-topic" key={id} onClick={()=>{chooseCountry(other);setSelected(id);setCompare(false);setView('trends');}}>{text(snapshotAt(recording,other,window??'',profile)?.topics.find(t=>t.id===id)?.label??id)}</button>)}</>}<p className="evidence-note">Overlap describes these samples. It does not measure how an entire country thinks.</p></>:<>
+        {compare?<><div className="section-kicker"><Globe2 size={13}/> ACROSS THE WORLD<button className="close-small" onClick={()=>setCompare(false)} aria-label="Close comparison"><X size={14}/></button></div><h2>A different<br/>window.</h2><label className="select-label" htmlFor="compare-country">COMPARE WITH</label><select id="compare-country" className="compare-select" value={other} onChange={e=>setOther(e.target.value)}>{recording.countries.filter(c=>c.code!==country).map(c=><option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}</select><SignalOverlap unit="topic" countries={[country,other].map(code=>({code,name:recording.countries.find(c=>c.code===code)?.name??code}))} signals={topicSignals(snapshot,snapshotAt(recording,other,window??'',profile),ai,platform)} onOpen={signal=>{if(!signal.present.includes(country))chooseCountry(other);setSelected(signal.id);setCompare(false);setView('list');}}/><div className="overlap"><strong>{comparison?.overlap==null?'—':`${Math.round(comparison.overlap*100)}%`}</strong><span>topic overlap</span></div><p className="profile-note">{comparison?`${comparison.commonSurfaces} matching successful surfaces. ${comparison.leftCoverage} vs ${comparison.rightCoverage} available.`:'No comparable successful samples for these settings.'}</p>{comparison&&<><div className="divider"/><div className="section-kicker">SHARED TOPICS · {comparison.shared.length}</div>{comparison.shared.slice(0,8).map(id=><button className="shared-topic" key={id} onClick={()=>{setSelected(id);setCompare(false);}}>{text(snapshot?.topics.find(t=>t.id===id)?.label??id)}<ArrowUpRight size={13}/></button>)}<div className="comparison-counts"><span>{comparison.leftOnly.length} only here</span><span>{comparison.rightOnly.length} only there</span></div><div className="section-kicker">DISTINCTIVE HERE</div>{comparison.leftOnly.slice(0,6).map(id=><button className="shared-topic" key={id} onClick={()=>{setSelected(id);setCompare(false);setView('trends');}}>{text(snapshot?.topics.find(t=>t.id===id)?.label??id)}</button>)}<div className="section-kicker">DISTINCTIVE THERE</div>{comparison.rightOnly.slice(0,6).map(id=><button className="shared-topic" key={id} onClick={()=>{chooseCountry(other);setSelected(id);setCompare(false);setView('trends');}}>{text(snapshotAt(recording,other,window??'',profile)?.topics.find(t=>t.id===id)?.label??id)}</button>)}</>}<p className="evidence-note">Overlap describes these samples. It does not measure how an entire country thinks.</p></>:<>
           <div className="section-kicker"><Sparkles size={13}/> IN THIS CITY</div><h2>What’s in<br/>the window?</h2>
           <div className="topic-search"><Search size={14}/><input aria-label="Search topics" placeholder="Find a topic…" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button aria-label="Clear topic search" onClick={()=>setQuery('')}><X size={13}/></button>}</div>
           <div className="topic-list">{topics.slice(0,24).map((t,i)=><button key={t.id} className={`topic-row ${activeTopic?.id===t.id?'active':''}`} onClick={()=>{setSelected(t.id);if(!cityIds.has(t.id))setView('list');}}><span className="topic-rank">{String(i+1).padStart(2,'0')}</span><span className="topic-name">{text(t.label)}<small>{t.category==='ai'?'AI & TECHNOLOGY':t.category.toUpperCase()}</small></span><span className="topic-total">{t.count}</span></button>)}</div>

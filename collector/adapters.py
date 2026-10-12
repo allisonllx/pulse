@@ -53,10 +53,11 @@ def location_country(raw):
 
 
 class HTTPAdapter:
-    def __init__(self,settings,store,client_factory=None,sleep=time.sleep):
+    def __init__(self,settings,store,client_factory=None,sleep=time.sleep,max_attempts=MAX_ATTEMPTS):
         self.settings,self.store = settings,store
         self.client_factory = client_factory or httpx.Client
         self.sleep = sleep
+        self.max_attempts = max_attempts
 
     def request(self,client,url,job,kind,cap):
         count = 0
@@ -105,7 +106,7 @@ class HTTPAdapter:
         server,username,proxy = proxy_parts(self.settings,job.country,session)
         result = {"status":"failed","observedCountry":None,"sessionRef":hashlib.sha256(session.encode()).hexdigest()[:16],"raw":b""}
         start = self.store.job_spent(job.id)
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(self.max_attempts):
             try:
                 with self.client_factory(proxy=proxy,timeout=30,follow_redirects=False,headers={"Accept-Language":job.language,"Accept-Encoding":"gzip","User-Agent":"Mozilla/5.0 WorldviewResearch/1.0"}) as client:
                     observed = location_country(self.request(client,LOCATION_URL,job,"location",LOCATION_CAP))
@@ -122,22 +123,30 @@ class HTTPAdapter:
                     items = parse(raw,job,result["observedAt"])
                     if not items:
                         valid_empty=False
-                        if job.surface=='watch_rss':
+                        if job.surface in {'watch_rss','scan_news'}:
                             import xml.etree.ElementTree as ET
                             try:
                                 root=ET.fromstring(raw)
                                 valid_empty=root.tag=='rss' and root.find('channel') is not None and not root.findall('.//item')
                             except ET.ParseError:pass
-                        if not valid_empty:raise FetchError("blocked_or_empty_extraction")
+                        if not valid_empty:
+                            if job.surface.startswith('scan_'):
+                                from bs4 import BeautifulSoup
+                                soup=BeautifulSoup(raw,'html.parser')
+                                visible=soup.get_text(' ',strip=True)
+                                if 'Our systems have detected unusual traffic' in visible:raise FetchError('human_verification')
+                                if job.source=='google_search' and 'if you are not redirected' in visible:raise FetchError('javascript_shell')
+                                if soup.select('h3, li.b_algo, a.result__a'):raise FetchError('no_relevant_results')
+                            raise FetchError("blocked_or_empty_extraction")
                     result["status"] = "success"
                     result["bytes"] = self.store.job_spent(job.id)-start
                     return result,items
             except FetchError as error:
                 result["error"] = error.code
-                if error.code in {"geography_mismatch","geography_changed","response_too_large","browser_unavailable"}: break
+                if error.code in {"geography_mismatch","geography_changed","response_too_large","browser_unavailable","human_verification"}: break
             except Exception:
                 result["error"] = "adapter_error"  # Never stringify exceptions carrying proxy credentials.
-            if attempt+1 < MAX_ATTEMPTS: self.sleep(min(2**attempt,4))
+            if attempt+1 < self.max_attempts: self.sleep(min(2**attempt,4))
         result["bytes"] = self.store.job_spent(job.id)-start
         result.setdefault("observedAt",utcnow())
         return result,[]

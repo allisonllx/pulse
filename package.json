@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
+    "scan:serve": ".venv-collector/bin/python -m collector.scan_server",
     "build": "next build",
     "start": "python3 -m http.server 3000 --directory out --bind 0.0.0.0",
     "typecheck": "tsc --noEmit",

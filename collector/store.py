@@ -63,6 +63,7 @@ class Store:
         for row in self.rows("jobs"):
             if row["state"] == "done":continue
             job = Job(**json.loads(row["payload"]))
+            if job.surface.startswith('scan_'):continue
             if job.window>=window:continue
             if row["state"]=="running" and row["lease"] and row["lease"]>=expired_lease:continue
             self.save(job,{"status":"missed","observedCountry":None,"observedAt":now.isoformat().replace("+00:00","Z"),"error":"missed_window","bytes":self.job_spent(job.id)},[])
@@ -119,14 +120,16 @@ class Store:
         digest,raw_path = self.preserve_raw(raw)
         success = result["status"] == "success" and result.get("observedCountry") == job.country
         with self.db:
-            self.db.execute("INSERT OR IGNORE INTO health(country,source) VALUES(?,?)", (job.country,job.source))
-            health=self.db.execute("SELECT streak,last_window FROM health WHERE country=? AND source=?",(job.country,job.source)).fetchone()
-            from datetime import datetime,timedelta
-            consecutive=health['last_window'] and datetime.fromisoformat(job.window.replace('Z','+00:00'))-datetime.fromisoformat(health['last_window'].replace('Z','+00:00'))==timedelta(hours=6)
-            same_window=health['last_window']==job.window
-            streak=(health['streak'] if same_window else health['streak']+1 if consecutive else 1) if success else 0
-            self.db.execute("UPDATE health SET streak=?,promoted=?,last_window=? WHERE country=? AND source=?",(streak,streak>=2,job.window,job.country,job.source))
-            promoted = self.db.execute("SELECT promoted FROM health WHERE country=? AND source=?",(job.country,job.source)).fetchone()[0]
+            promoted = 0
+            if not job.surface.startswith('scan_'):
+                self.db.execute("INSERT OR IGNORE INTO health(country,source) VALUES(?,?)", (job.country,job.source))
+                health=self.db.execute("SELECT streak,last_window FROM health WHERE country=? AND source=?",(job.country,job.source)).fetchone()
+                from datetime import datetime,timedelta
+                consecutive=health['last_window'] and datetime.fromisoformat(job.window.replace('Z','+00:00'))-datetime.fromisoformat(health['last_window'].replace('Z','+00:00'))==timedelta(hours=6)
+                same_window=health['last_window']==job.window
+                streak=(health['streak'] if same_window else health['streak']+1 if consecutive else 1) if success else 0
+                self.db.execute("UPDATE health SET streak=?,promoted=?,last_window=? WHERE country=? AND source=?",(streak,streak>=2,job.window,job.country,job.source))
+                promoted = self.db.execute("SELECT promoted FROM health WHERE country=? AND source=?",(job.country,job.source)).fetchone()[0]
             self.db.execute("INSERT OR REPLACE INTO observations VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (job.id,job.id,job.country,job.window,job.profile,job.source,job.surface,job.query,result["status"],result.get("observedCountry"),result.get("observedAt",utcnow()),result.get("bytes",0),promoted,digest,raw_path,EXTRACTION_VERSION,json.dumps(job.settings),result.get("sessionRef"),result.get("error","")))
             self.db.execute("DELETE FROM items WHERE observation_id=?",(job.id,))
             for item in items if success else []:
