@@ -3,7 +3,7 @@ import fs from 'node:fs';
 test.beforeEach(async({page})=>{await page.route('**/data/manifest.json',r=>r.fulfill({contentType:'application/json',body:fs.readFileSync('public/data/demo-manifest.json','utf8')}));});
 test('country city, evidence, filters, comparison and replay work',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('/');
+  await page.goto('/explore');
   await expect(page.getByRole('heading',{name:'The internet, from here.'})).toBeVisible();
   await expect(page.getByText('Synthetic demonstration · illustrative topics and arrivals')).toBeVisible();
   await page.getByRole('button',{name:'List view',exact:true}).click();
@@ -27,7 +27,7 @@ test('country city, evidence, filters, comparison and replay work',async({page})
 test('mobile provides a useful accessible list fallback',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('button',{name:'List view',exact:true}).click();
   await expect(page.locator('.topic-card').first()).toBeVisible();
   await page.getByRole('button',{name:'Look through the AI lens'}).click();
@@ -37,7 +37,7 @@ test('mobile provides a useful accessible list fallback',async({page})=>{
 });
 test('missing public data offers a clearly labeled demonstration',async({page})=>{
   await page.route('**/data/manifest.json',r=>r.fulfill({status:404,body:'Not found'}));
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('button',{name:'Explore demonstration'}).click();
   await expect(page.getByText('Synthetic demonstration · illustrative topics and arrivals')).toBeVisible();
 });
@@ -51,7 +51,7 @@ test('published pilot opens real evidence and reconciles visitors',async({page})
   const universe=new Map<string,any>();for(const s of recording.snapshots.filter((s:any)=>s.country==='SG'&&s.profile==='local'))for(const t of s.topics)if(!universe.has(t.id))universe.set(t.id,t);
   const ids=new Set([...universe.values()].sort((a,b)=>b.count-a.count||a.id.localeCompare(b.id)).slice(0,48).map(t=>t.id));
   const count=snapshot.topics.filter((t:any)=>ids.has(t.id)).reduce((n:number,t:any)=>n+t.items.length,0);
-  await page.goto('/');
+  await page.goto('/explore');
   await expect(page.getByText('RECORDED OBSERVATIONS',{exact:true})).toBeVisible();
   await expect(page.locator('[data-resident-count]')).toHaveAttribute('data-resident-count',String(count),{timeout:30000});
   if(recording.windows.length<2)await expect(page.getByRole('button',{name:'Play replay'})).toBeDisabled();else await expect(page.getByRole('button',{name:'Play replay'})).toBeEnabled();
@@ -67,7 +67,7 @@ test('published pilot opens real evidence and reconciles visitors',async({page})
 
 test('shop focus has a clear exit and trends keep a topic across country navigation',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await page.locator('[data-focused-topic]').waitFor({timeout:30000});
+ await page.goto('/explore');await page.locator('[data-focused-topic]').waitFor({timeout:30000});
  await page.locator('.topic-row').first().click();
  await expect(page.locator('[data-focused-topic]')).not.toHaveAttribute('data-focused-topic','');
  await page.getByRole('button',{name:'Clear shop focus'}).click();
@@ -85,13 +85,17 @@ test('shop focus has a clear exit and trends keep a topic across country navigat
 });
 
 test('French translations preserve originals and the recorded Cornell query is explorable',async({page})=>{
- await page.unroute('**/data/manifest.json');await page.goto('/');
+ await page.unroute('**/data/manifest.json');await page.goto('/explore');
  await page.getByRole('button',{name:'Trends view',exact:true}).click();
  await page.getByRole('button',{name:'Tracked query: cornell 7',exact:true}).click();
  await expect(page.locator('.topic-journey h4').first()).toHaveText('Tracked query: cornell 7');
  await page.locator('.journey-scroll').getByRole('button',{name:'United States'}).click();
  await expect(page.locator('.topic-journey h4').first()).toHaveText('Tracked query: cornell 7');
  await page.locator('#country').selectOption('FR');
+ // The newest live snapshot may contain only English-titled videos. Pin the
+ // historical French news frame so this exercises translation, not feed timing.
+ await page.getByRole('slider',{name:'Recording time'}).focus();
+ await page.keyboard.press('Home');
  await page.getByRole('button',{name:'List view',exact:true}).click();
  await expect(page.locator('.topic-detail .original-text').first()).toBeVisible();
  const original=await page.locator('.topic-detail .original-text').first().innerText();
@@ -100,7 +104,7 @@ test('French translations preserve originals and the recorded Cornell query is e
 });
 
  test('source coverage exposes successful English sources for an expansion country',async({page})=>{
- await page.unroute('**/data/manifest.json');await page.goto('/');
+ await page.unroute('**/data/manifest.json');await page.goto('/explore');
  await page.locator('#country').selectOption('FR');
  await page.locator('.source-context button').click();
  await expect(page.locator('.section-kicker').filter({hasText:'ENGLISH CONTROL'})).toBeVisible();

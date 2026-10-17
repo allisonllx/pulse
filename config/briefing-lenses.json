@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "lenses": {
+    "all": {
+      "concepts": [], "exclusions": [],
+      "queries": ["major world developments this week", "science discoveries this week", "business and economy this week", "culture this week"],
+      "themes": ["World", "Business", "Science & health", "Culture", "Technology"]
+    },
+    "tech": {
+      "concepts": ["AI", "artificial intelligence", "model serving", "GPU", "cloud computing", "software", "semiconductor", "developer", "cybersecurity", "robotics", "machine learning", "data center", "open source", "Kubernetes", "technology"],
+      "exclusions": ["bridge construction", "civil infrastructure"],
+      "queries": ["technology launches this week", "AI infrastructure model serving GPU cloud", "AI infrastructure engineer roles hiring", "AI infrastructure guide tutorial", "open source developer releases"],
+      "themes": ["AI & models", "Infrastructure", "Developer tools", "Security", "Tech business"]
+    }
+  }
+}

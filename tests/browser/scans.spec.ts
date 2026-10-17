@@ -15,7 +15,7 @@ test('a new keyword streams real steps, evidence and a country comparison',async
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/api/scans',r=>r.fulfill({status:202,json:{cached:false,scan:{...completed,status:'queued',completed:0,events:[],recording:null}}}));
   await page.route('**/api/scans/*',r=>r.fulfill({json:completed}));
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('textbox',{name:'Keyword to scan'}).fill('Claude Code');
   await page.getByRole('button',{name:'Explore the world',exact:true}).click();
   await expect(page.getByText('Deploying geographic observers…')).toBeVisible();
@@ -40,7 +40,7 @@ test('cached recommendation opens without making a live request and stays within
   await page.route('**/data/scans/index.json',r=>r.fulfill({json:[completed]}));
   let liveRequests=0;
   await page.route('**/api/scans',r=>{liveRequests++;return r.fulfill({status:503,json:{error:'offline'}});});
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('button',{name:'Claude Code Snapshot'}).click();
   await expect(page.locator('.scan-result-heading')).toContainText('SNAPSHOT');
   await expect(page.locator('.scan-findings article')).toHaveCount(1);
@@ -50,7 +50,7 @@ test('cached recommendation opens without making a live request and stays within
 
 test('live service failure is visible and preserves the recording',async({page})=>{
   await page.route('**/api/scans',r=>r.fulfill({status:422,json:{error:'This scan exceeds the remaining traffic budget. Choose fewer countries.'}}));
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('textbox',{name:'Keyword to scan'}).fill('BYD');
   await page.getByRole('button',{name:'Explore the world',exact:true}).click();
   await expect(page.getByText('This scan exceeds the remaining traffic budget. Choose fewer countries.')).toBeVisible();
@@ -61,7 +61,7 @@ test('search works before any scheduled recording exists',async({page})=>{
   await page.route('**/data/manifest.json',r=>r.fulfill({status:404,body:'Not found'}));
   await page.route('**/api/scans',r=>r.fulfill({status:202,json:{cached:false,scan:{...completed,status:'queued',completed:0,events:[],recording:null}}}));
   await page.route('**/api/scans/*',r=>r.fulfill({json:completed}));
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('textbox',{name:'Keyword to scan'}).fill('Claude Code');
   await page.getByRole('button',{name:'Explore the world',exact:true}).click();
   await expect(page.locator('.scan-outcome')).toHaveText('partial · 7/7 signals');
@@ -74,7 +74,7 @@ test('two viewpoints can be compared and filtered independently',async({page})=>
   const both={...completed,countries:['SG','US'],planned:14,completed:14,recording:{...scanRecording,countries:recording.countries.filter((c:any)=>['SG','US'].includes(c.code)),snapshots:[...scanRecording.snapshots,usSnapshot]}};
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.route('**/api/scans',r=>r.fulfill({json:{cached:true,scan:both}}));
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('button',{name:'List view',exact:true}).click();
   await page.getByRole('textbox',{name:'Keyword to scan'}).fill('Claude Code');
   await page.getByRole('button',{name:'Explore the world',exact:true}).click();
@@ -100,7 +100,7 @@ test('concept selection previews terms before collection and keeps identity on r
   const result={...completed,concept,keyword:concept.label,recording:{...scanRecording,snapshots:[snapshot]}};
   const requests:any[]=[];
   await page.route('**/api/scans',r=>{requests.push(r.request().postDataJSON());return r.fulfill({json:{cached:true,scan:result}});});
-  await page.goto('/');
+  await page.goto('/explore');
   await page.getByRole('button',{name:/Food & drinks Bubble tea & boba/}).click();
   await expect(page.locator('.concept-selection')).toContainText('珍珠奶茶');
   expect(requests).toHaveLength(0);

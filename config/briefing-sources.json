@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {"id": "bbc-news", "label": "BBC News", "type": "rss", "enabled": true, "url": "https://feeds.bbci.co.uk/news/rss.xml", "publisherGroup": "bbc"},
+    {"id": "bbc-business", "label": "BBC Business", "type": "rss", "enabled": true, "url": "https://feeds.bbci.co.uk/news/business/rss.xml", "publisherGroup": "bbc"},
+    {"id": "bbc-culture", "label": "BBC Culture", "type": "rss", "enabled": true, "url": "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", "publisherGroup": "bbc"},
+    {"id": "guardian-world", "label": "The Guardian", "type": "rss", "enabled": true, "url": "https://www.theguardian.com/world/rss", "publisherGroup": "guardian"},
+    {"id": "guardian-tech", "label": "Guardian Technology", "type": "rss", "enabled": true, "url": "https://www.theguardian.com/technology/rss", "publisherGroup": "guardian"},
+    {"id": "nasa", "label": "NASA", "type": "rss", "enabled": true, "url": "https://www.nasa.gov/news-release/feed/", "publisherGroup": "nasa", "evidenceKind": "announcement"},
+    {"id": "bbc-tech", "label": "BBC Technology", "type": "rss", "enabled": true, "url": "https://feeds.bbci.co.uk/news/technology/rss.xml", "publisherGroup": "bbc"},
+    {"id": "hacker-news", "label": "Hacker News", "type": "rss", "enabled": true, "url": "https://hnrss.org/frontpage", "publisherGroup": "hacker-news", "evidenceKind": "discussion"},
+    {"id": "kubernetes", "label": "Kubernetes releases", "type": "github", "enabled": true, "url": "https://api.github.com/repos/kubernetes/kubernetes/releases?per_page=20", "publisherGroup": "kubernetes", "evidenceKind": "announcement"},
+    {"id": "search", "type": "search", "enabled": false, "reason": "Search provider not configured"},
+    {"id": "reddit", "type": "reddit", "enabled": false, "reason": "Public access not verified"},
+    {"id": "youtube", "type": "youtube", "enabled": false, "reason": "Metadata provider not configured"},
+    {"id": "x", "type": "x", "enabled": false, "reason": "Optional public access not verified"}
+  ]
+}
