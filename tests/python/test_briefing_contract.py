@@ -48,3 +48,18 @@ def test_tech_concepts_and_exclusions():
     assert matching_lenses('AI infrastructure engineer hiring guide', catalog) == ['all', 'tech']
     assert matching_lenses('Bridge construction infrastructure roles', catalog) == ['all']
     assert catalog.version == load_catalog(Path('config/briefing-lenses.json')).version
+
+
+@pytest.mark.parametrize('title', ['DeepSeek: DeepSeek v4.1 Flash 1017', 'Claude reveals ECDSA curve origins',
+                                  'How the Claude Code team does code review', 'You could have invented transformers from memory'])
+def test_ai_community_headlines_belong_in_tech(title):
+    from collector.briefing.config import technology_topic
+    catalog = load_catalog(Path('config/briefing-lenses.json'))
+    assert matching_lenses(title, catalog) == ['all', 'tech']
+    assert technology_topic(title, catalog) == 'AI & models'
+
+
+@pytest.mark.parametrize('title', ['Claude Monet paintings return to Paris', 'Electrical transformers on the grid', 'Transformers movie wins award'])
+def test_ambiguous_names_do_not_force_tech_membership(title):
+    catalog = load_catalog(Path('config/briefing-lenses.json'))
+    assert matching_lenses(title, catalog) == ['all']

@@ -27,7 +27,9 @@ Publication writes immutable lens files and an archive index, then atomically ch
 | NASA | Official news-release RSS | Verified XML with 10 feed entries |
 | Hacker News | `https://hnrss.org/frontpage` | 20 posts; discussion links use HN thread URLs, with literal points/comments |
 | Kubernetes | GitHub releases REST API, 20-result bound | 20 published releases; edition filtering uses `published_at` |
-| Search / Reddit / YouTube / X | Disabled capability entries | No usable provider configured; shown as coverage gaps |
+| YouTube | Pinned yt-dlp + Node, public This week/popularity search | Six dated videos in the integration check |
+| Reddit / X | OpenCLI read-only browser adapters | Runtime installed; explicit browser connection still required |
+| Search | Disabled capability entry | Search provider not configured |
 
 The GitHub Atom feed was tested but contains update dates without publication dates; the implementation instead uses the [documented releases API](https://docs.github.com/en/rest/releases/releases#list-releases). HN RSS is a third-party feed of public discussions. Counts above are collected records, not necessarily records in the edition window.
 
@@ -69,4 +71,35 @@ Regression tests cover timezone/window boundaries, unsafe URLs, metric validatio
 
 ## Remaining plan work
 
-The end-to-end RSS/GitHub briefing path and dashboard are implemented. The broader approved plan still requires supported search/Reddit/YouTube/X adapters, a richer multi-publisher catalog, semantic event clustering, a labeled 40-signal ranking corpus, scheduler activation, and verified hosted delivery. On-demand sector/topic research remains the next product increment after those operational foundations.
+The end-to-end RSS/GitHub/YouTube briefing path and dashboard are implemented. Reddit/X browser adapters are implemented and await user browser setup. Remaining work includes a search provider, broader reporting coverage, semantic event clustering, a labeled 40-signal ranking corpus, scheduler activation, and verified hosted delivery. On-demand sector/topic research remains the next product increment after those operational foundations.
+
+## Social backends and topic labels
+
+Technology membership is independent of evidence type: a Hacker News thread about Claude can be `Technology · AI & models · Community discussion`. The All and Tech grouping now share the same classifier. The catalog recognizes DeepSeek, Claude Code and related AI names, while contextual rules separate neural transformers from electrical equipment or films. Build/publish re-evaluates cached signals against the current catalog without rewriting raw evidence.
+
+YouTube uses `yt-dlp[default]==2026.8.19` from the collector's `social` extra, with Node explicitly enabled. It samples at most three videos from each of two configured queries using the project's existing This week/popularity filter. It downloads metadata only, ignores user yt-dlp configuration/plugins, and never reads browser cookies. Commands have a 75-second timeout and 2 MB output limit; only needed metadata fields are emitted. Entries without an exact publication timestamp are rejected. Publication additionally enforces the edition's seven-day window. These are query samples, not all-platform trends.
+
+```sh
+.venv-collector/bin/python -m pip install '.[social]'
+```
+
+X and Reddit use the read-only `search` adapters from OpenCLI 2.0.0, following the backend used by Agent-Reach. The runtime is installed privately under `.worldview/tools/opencli` with lifecycle scripts disabled. Reproduce that installation with:
+
+```sh
+npm install --prefix .worldview/tools/opencli --ignore-scripts --save-exact @jackwener/opencli@2.0.0
+```
+
+To connect your browser:
+
+1. Install the [OpenCLI Browser Bridge extension](https://chromewebstore.google.com/detail/opencli/ildkmabpimmkaediidaifkhjpohdnifk) in the Chrome profile you want Pulse to use.
+2. Log into X and Reddit in that profile yourself. No passwords or cookies need to be pasted into chat or committed to this repository.
+3. Check the connector using `.worldview/tools/opencli/node_modules/.bin/opencli doctor`. With multiple connected profiles, choose one using OpenCLI's profile commands or `OPENCLI_PROFILE`.
+4. Explicitly enable browser collection:
+
+```sh
+PULSE_BROWSER_SOURCES=1 .venv-collector/bin/python -m collector.briefing.cli collect
+```
+
+For scheduled runs, add `PULSE_BROWSER_SOURCES=1` and the chosen `OPENCLI_PROFILE` to the private `.env.local` only after completing that setup. Without the opt-in, Pulse does not invoke OpenCLI or inspect any browser session. The adapters only search: they never post, like, comment, follow, or join communities. Reddit uses top posts within a week; X uses a bounded top-search query with date operators. Exact timestamps are validated again before publication. Chrome/bridge/login availability is still required at collection time.
+
+The browser integration is fixture-tested against the upstream row contracts; it is not claimed live-connected until the user completes the bridge/login step. Agent-Reach itself, Scrapling, and Patchright Enhanced are not required for these paths.

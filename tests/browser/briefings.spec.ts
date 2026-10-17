@@ -14,6 +14,7 @@ test('weekly lenses expose evidence, source gaps and mobile layout', async ({ pa
   await expect(page.getByRole('heading', { name: 'The week in focus' })).toBeVisible();
   await page.getByRole('button', { name: 'Technology', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'A new GPU serving tool' })).toBeVisible();
+  await expect(page.getByText('Technology · Reporting + discussion', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Example ↗' })).toHaveAttribute('href', 'https://example.com/release');
   await expect(page.getByRole('link', { name: 'Hacker News ↗' })).toBeVisible();
   await expect(page.getByText('Public access not verified')).toBeVisible();

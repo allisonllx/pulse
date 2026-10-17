@@ -11,8 +11,8 @@
     {"id": "hacker-news", "label": "Hacker News", "type": "rss", "enabled": true, "url": "https://hnrss.org/frontpage", "publisherGroup": "hacker-news", "evidenceKind": "discussion"},
     {"id": "kubernetes", "label": "Kubernetes releases", "type": "github", "enabled": true, "url": "https://api.github.com/repos/kubernetes/kubernetes/releases?per_page=20", "publisherGroup": "kubernetes", "evidenceKind": "announcement"},
     {"id": "search", "type": "search", "enabled": false, "reason": "Search provider not configured"},
-    {"id": "reddit", "type": "reddit", "enabled": false, "reason": "Public access not verified"},
-    {"id": "youtube", "type": "youtube", "enabled": false, "reason": "Metadata provider not configured"},
-    {"id": "x", "type": "x", "enabled": false, "reason": "Optional public access not verified"}
+    {"id": "reddit", "type": "reddit", "enabled": true, "queries": ["technology", "AI infrastructure"], "limit": 10},
+    {"id": "youtube", "type": "youtube", "enabled": true, "queries": ["AI infrastructure", "technology news"], "limit": 3},
+    {"id": "x", "type": "x", "enabled": true, "queries": ["technology", "AI infrastructure"], "limit": 10}
   ]
 }

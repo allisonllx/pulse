@@ -1,6 +1,6 @@
 export type Lens = 'all' | 'tech';
 export type BriefingLink = { url: string; title: string; source: string; evidenceKind: string; publishedAt: string; discoveryMethod: string };
-export type Development = { id: string; headline: string; whyItMatters: string; editorialBasis: string; publishedAt: string; evidenceLinks: BriefingLink[]; discussionLinks: BriefingLink[]; scoreFactors: Record<string, number>; discussionBasis: string };
+export type Development = { id: string; headline: string; sector: string; topic: string; whyItMatters: string; editorialBasis: string; publishedAt: string; evidenceLinks: BriefingLink[]; discussionLinks: BriefingLink[]; scoreFactors: Record<string, number>; discussionBasis: string };
 export type WeeklyBriefing = { schemaVersion: 1; editionId: string; lens: Lens; windowStart: string; windowEnd: string; generatedAt: string; status: 'complete' | 'degraded' | 'thin'; themes: { id: string; label: string; developments: Development[] }[]; coverage: { scope: string; note: string; sources: { source: string; status: string; itemCount?: number; reason?: string }[] } };
 export type Edition = { editionId: string; revision: string; lenses: Record<Lens, string> };
 
@@ -42,7 +42,8 @@ export function parseBriefing(value: unknown): WeeklyBriefing {
       if (Date.parse(publishedAt) < Date.parse(windowStart) || Date.parse(publishedAt) >= Date.parse(windowEnd)) throw new Error('Development outside window');
       const scoreFactors = record(d.scoreFactors);
       if (Object.values(scoreFactors).some(x => typeof x !== 'number' || !Number.isFinite(x))) throw new Error('Invalid score');
-      return { id: text(d.id), headline: text(d.headline), whyItMatters: text(d.whyItMatters), editorialBasis: text(d.editorialBasis), publishedAt,
+      return { id: text(d.id), headline: text(d.headline), sector: typeof d.sector === 'string' ? text(d.sector) : v.lens === 'tech' ? 'Technology' : text(t.label),
+        topic: typeof d.topic === 'string' ? text(d.topic) : text(t.label), whyItMatters: text(d.whyItMatters), editorialBasis: text(d.editorialBasis), publishedAt,
         evidenceLinks: links(d.evidenceLinks), discussionLinks: links(d.discussionLinks), scoreFactors: scoreFactors as Record<string, number>, discussionBasis: text(d.discussionBasis) };
     }) };
   });

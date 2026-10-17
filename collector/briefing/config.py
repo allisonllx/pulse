@@ -24,7 +24,23 @@ def load_catalog(path: Path) -> Catalog:
 
 
 def matching_lenses(text: str, catalog: Catalog) -> list[str]:
+    return ['all', 'tech'] if technology_topic(text, catalog) else ['all']
+
+
+def technology_topic(text: str, catalog: Catalog) -> str | None:
     def matches(term):
         return re.search(r'(?<!\w)' + re.escape(term) + r'(?!\w)', text, re.I) is not None
     tech = catalog.lenses['tech']
-    return ['all', 'tech'] if any(map(matches, tech['concepts'])) and not any(map(matches, tech['exclusions'])) else ['all']
+    if any(map(matches, tech['exclusions'])):
+        return None
+    contextual = any(matches(term) and any(map(matches, contexts)) for term, contexts in tech.get('contextualConcepts', {}).items())
+    if not contextual and not any(map(matches, tech['concepts'])):
+        return None
+    if contextual or any(map(matches, tech.get('aiConcepts', []))):
+        return 'AI & models'
+    for label, terms in [('Infrastructure', ['GPU', 'cloud computing', 'data center', 'Kubernetes', 'model serving']),
+                         ('Security', ['cybersecurity', 'security', 'vulnerability', 'breach']),
+                         ('Developer tools', ['developer', 'software', 'open source'])]:
+        if any(map(matches, terms)):
+            return label
+    return 'Tech business'

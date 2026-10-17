@@ -2,8 +2,12 @@ import type { Development } from '@/lib/briefings';
 import styles from './briefing.module.css';
 
 export default function BriefingCard({ development: d }: { development: Development }) {
+  const evidenceLabel = d.evidenceLinks.length && d.discussionLinks.length ? 'Reporting + discussion'
+    : d.editorialBasis === 'community-signal' ? 'Community discussion'
+    : d.evidenceLinks.every(link => link.evidenceKind === 'announcement') ? 'Announcement' : 'Reporting';
+  const labels = [d.sector, ...(d.topic !== d.sector ? [d.topic] : []), evidenceLabel].join(' · ');
   return <article className={styles.card}>
-    <p className={styles.cardLabel}>{d.editorialBasis === 'community-signal' ? 'COMMUNITY SIGNAL' : 'DEVELOPMENT'}<span>{new Date(d.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Singapore' })}</span></p>
+    <p className={styles.cardLabel}><span>{labels}</span><time dateTime={d.publishedAt}>{new Date(d.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Singapore' })}</time></p>
     <h3>{d.headline}</h3><p className={styles.description}>{d.whyItMatters}</p>
     {d.evidenceLinks.length > 0 && <div className={styles.links}><span>Reporting & announcements</span>{d.evidenceLinks.map(l => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer">{l.source} ↗</a>)}</div>}
     {d.discussionLinks.length > 0 && <div className={styles.links}><span>Discussion</span>{d.discussionLinks.map(l => <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer">{l.source} ↗</a>)}</div>}

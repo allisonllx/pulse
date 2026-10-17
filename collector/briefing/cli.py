@@ -1,9 +1,12 @@
 """Collect selected feeds and publish a weekly edition for static hosting."""
 import argparse
 from datetime import datetime, timezone, timedelta
+from dataclasses import replace
 import json
 from pathlib import Path
+from dotenv import load_dotenv
 from .cluster import cluster_signals
+from .config import load_catalog, matching_lenses
 from .compose import compose_briefing
 from .models import previous_week, timestamp
 from .pipeline import collect_sources, ROOT
@@ -13,6 +16,7 @@ from .store import BriefingStore
 
 
 def main(argv=None):
+    load_dotenv(ROOT / '.env.local', override=False)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=['collect', 'build', 'publish', 'status'])
     parser.add_argument('--data-dir', type=Path, default=ROOT / '.worldview/briefings')
@@ -41,6 +45,10 @@ def main(argv=None):
                 if end > now:
                     raise ValueError('Edition window cannot end in the future')
                 signals = store.signals_between(start, end)
+                catalog = load_catalog(ROOT / 'config/briefing-lenses.json')
+                # Re-evaluate navigation against the current catalog; evidence stays immutable.
+                signals = [replace(s, lensCandidates=['all', 'tech'] if s.sourceType == 'github'
+                                   else matching_lenses(s.title + ' ' + (s.excerpt or ''), catalog)) for s in signals]
                 if not signals:
                     raise ValueError('No dated evidence in this window; last publication preserved')
                 clusters = cluster_signals(signals)

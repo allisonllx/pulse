@@ -42,3 +42,22 @@ def test_busy_discussion_source_cannot_crowd_out_available_reporting():
     selected = [d for t in value['themes'] for d in t['developments']]
     assert sum(bool(d['evidenceLinks']) for d in selected) == 12
     assert sum(d['editorialBasis'] == 'community-signal' for d in selected) == 8
+
+
+def test_ai_discussion_keeps_both_technology_and_evidence_labels():
+    items = [signal('claude', 'How the Claude Code team does code review', evidenceKind='discussion', lensCandidates=['all', 'tech'])]
+    value = compose_briefing(rank_clusters(cluster_signals(items), 'tech', '2026-10-19T00:00:00Z'), 'tech', [], ('2026-10-12T00:00:00Z', '2026-10-19T00:00:00Z'))
+    assert value['themes'][0]['label'] == 'AI & models'
+    item = value['themes'][0]['developments'][0]
+    assert item['sector'] == 'Technology'
+    assert item['topic'] == 'AI & models'
+    assert item['editorialBasis'] == 'community-signal'
+
+
+def test_available_video_discussion_is_not_crowded_out_by_one_forum():
+    items = [signal('news' + str(i), 'Reported story ' + str(i)) for i in range(12)]
+    items += [signal('hn' + str(i), 'Forum story ' + str(i), evidenceKind='discussion', source='hacker-news', publishedAt='2026-10-17T00:00:00Z', metrics={'views': 1000}) for i in range(10)]
+    items += [signal('video', 'GPU video guide', source='youtube', sourceType='youtube', evidenceKind='discussion', metrics={'views': 500})]
+    ranked = rank_clusters(cluster_signals(items), 'all', '2026-10-19T00:00:00Z')
+    value = compose_briefing(ranked, 'all', [], ('2026-10-12T00:00:00Z', '2026-10-19T00:00:00Z'))
+    assert any(link['source'] == 'youtube' for theme in value['themes'] for d in theme['developments'] for link in d['discussionLinks'])

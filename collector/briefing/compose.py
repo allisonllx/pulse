@@ -1,9 +1,20 @@
 from collections import defaultdict
 import re
+from functools import lru_cache
+from pathlib import Path
+from .config import load_catalog, technology_topic
 from .models import timestamp
 
 
+@lru_cache(maxsize=1)
+def theme_catalog():
+    return load_catalog(Path(__file__).resolve().parents[2] / 'config/briefing-lenses.json')
+
+
 def theme_for(text, lens):
+    topic = technology_topic(text, theme_catalog())
+    if topic:
+        return topic if lens == 'tech' else 'Technology'
     patterns = ([('AI & models', r'\b(ai|model|llm|artificial intelligence)\b'),
                  ('Infrastructure', r'\b(gpu|cloud|data center|kubernetes|infrastructure)\b'),
                  ('Security', r'\b(security|cyber|vulnerability|breach)\b'),
@@ -43,7 +54,21 @@ def compose_briefing(ranked, lens, runs, window):
             break
         if row not in selected:
             selected.append(row)
-    selected += discussion_rows[:8]
+    # Keep a newly connected source represented when eligible dated evidence exists.
+    discussion_selection, seen_sources = [], set()
+    for row in discussion_rows:
+        sources = {s.source for s in row.cluster.signals if s.evidenceKind == 'discussion'}
+        if sources - seen_sources:
+            discussion_selection.append(row)
+            seen_sources.update(sources)
+        if len(discussion_selection) == 8:
+            break
+    for row in discussion_rows:
+        if len(discussion_selection) >= 8:
+            break
+        if row not in discussion_selection:
+            discussion_selection.append(row)
+    selected += discussion_selection
     for row in ranked:
         if len(selected) >= 20:
             break
@@ -65,8 +90,12 @@ def compose_briefing(ranked, lens, runs, window):
                         evidenceKind=s.evidenceKind, publishedAt=s.publishedAt, discoveryMethod=s.sourceType)
         basis = 'reported' if factual else 'community-signal'
         description = anchor.excerpt or ('Public discussion surfaced in the selected sources.' if not factual else 'The linked publisher reports this development; open the source for details.')
-        themes[theme_for((anchor.authorOrPublisher or '') + ' ' + anchor.title + ' ' + (anchor.excerpt or ''), lens)].append(dict(
+        classification_text = anchor.title + ' ' + (anchor.excerpt or '')
+        topic = technology_topic(classification_text, theme_catalog())
+        theme = theme_for((anchor.authorOrPublisher or '') + ' ' + classification_text, lens)
+        themes[theme].append(dict(
             id=row.cluster.id, headline=anchor.title, whyItMatters=description,
+            sector='Technology' if topic else theme, topic=topic or theme,
             editorialBasis=basis, publishedAt=anchor.publishedAt,
             evidenceLinks=list({s.canonicalUrl: link(s) for s in factual}.values()),
             discussionLinks=list({s.canonicalUrl: link(s) for s in discussions}.values()),
@@ -81,4 +110,4 @@ def compose_briefing(ranked, lens, runs, window):
                 coverage=dict(scope='Selected English-language sources', sources=runs,
                               note='Sampled source coverage; missing sources do not imply no discussion.'),
                 themes=[dict(id=re.sub(r'[^a-z]+', '-', name.lower()).strip('-'), label=name, developments=items)
-                        for name, items in themes.items()], methodVersion='weekly-pulse-1')
+                        for name, items in themes.items()], methodVersion='weekly-pulse-2')
