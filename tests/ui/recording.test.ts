@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { compareSnapshots, filterTopics, readRecording, safeUrl, snapshotAt, Snapshot } from '../../src/lib/recording';
+import { gzipSync } from 'node:zlib';
+import { compareSnapshots, filterTopics, readRecording, readRecordingResponse, safeUrl, snapshotAt, Snapshot } from '../../src/lib/recording';
 const recording = readRecording(JSON.parse(readFileSync('public/data/demo-v1/recording.json','utf8')));
 describe('published recording semantics', () => {
   it('marks every illustrative observation as demonstration, with count reconciliation', () => {
@@ -50,5 +51,10 @@ describe('published recording semantics', () => {
     expect(()=>readRecording({...recording,windows:['broken']})).toThrow();
     const s = {...recording.snapshots[0],coverage:null} as unknown as Snapshot;
     expect(()=>readRecording({...recording,snapshots:[s]})).toThrow();
+  });
+  it('opens gzip-compressed recordings while preserving the recording schema', async () => {
+    const compressed = gzipSync(Buffer.from(JSON.stringify(recording)));
+    const loaded = await readRecordingResponse(new Response(compressed), '/data/example/recording.json.gz');
+    expect(loaded).toEqual(recording);
   });
 });

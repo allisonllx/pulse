@@ -1,7 +1,7 @@
 import copy
 import json
 
-from collector.translations import TranslationCache, build_translations, recording_texts, translate_recording
+from collector.translations import LocalTranslator, TranslationCache, build_translations, recording_texts, translate_recording, translate_texts
 
 
 class FakeTranslator:
@@ -37,6 +37,7 @@ def test_cache_reuse_and_model_revision_provenance(tmp_path):
     assert len(result["entries"]) == 2
     assert result["unsupportedLanguages"] == ["ko"]
     assert all(entry["status"] == "translated" and entry["modelRevision"] == translator.revision
+               and entry["qualityRevision"] == "quality-v2"
                for entry in result["entries"])
     assert json.dumps(source) == json.dumps(original)
     translator.calls.clear()
@@ -85,6 +86,49 @@ def test_cache_key_preserves_exact_text_and_source_language(tmp_path):
     cache.close()
 
 
+def test_on_demand_translation_returns_original_and_cached_english(tmp_path):
+    cache = TranslationCache(tmp_path / "translations.sqlite")
+    class JapaneseTranslator(FakeTranslator):
+        supported_languages = {"ja"}
+    translator = JapaneseTranslator()
+    result = translate_texts(["新作ゲームの発表"], "ja", cache, translator)
+    assert result[0]["original"] == "新作ゲームの発表"
+    assert result[0]["english"] == "Translated fixture: 新作ゲームの発表"
+    translate_texts(["新作ゲームの発表"], "ja", cache, translator)
+    assert len(translator.calls) == 1
+    cache.close()
+
+
+def test_on_demand_japanese_translation_rejects_gibberish_before_caching(tmp_path):
+    import pytest
+    class JapaneseTranslator(FakeTranslator):
+        supported_languages = {"ja"}
+        def translate(self, texts, language):
+            return ['Ruin                      The " "       "  " The                  "          do the']
+    cache = TranslationCache(tmp_path / "translations.sqlite")
+    with pytest.raises(ValueError, match="reliable English translation"):
+        translate_texts(["【予約開始】Switch2版の新作ゲーム"], "ja", cache, JapaneseTranslator())
+    assert cache.db.execute("SELECT COUNT(*) FROM translations").fetchone()[0] == 0
+    cache.close()
+
+
+def test_on_demand_japanese_translation_rejects_dropped_product_names(tmp_path):
+    import pytest
+    class JapaneseTranslator(FakeTranslator):
+        supported_languages = {"ja"}
+        def translate(self, texts, language):
+            return ["A new game is coming soon."]
+    cache = TranslationCache(tmp_path / "translations.sqlite")
+    with pytest.raises(ValueError, match="reliable English translation"):
+        translate_texts(["Switch2版の新作ゲーム"], "ja", cache, JapaneseTranslator())
+    assert cache.db.execute("SELECT COUNT(*) FROM translations").fetchone()[0] == 0
+    cache.close()
+
+
+def test_local_translator_supports_pinned_market_languages():
+    assert {'de','es','fr','hi','id','ja','ko','pt','sv','zh'} <= LocalTranslator.supported_languages
+
+
 def test_display_texts_keep_alias_item_language():
     texts = recording_texts(recording())
     assert ("Una nueva escuela", "es") in texts
@@ -103,7 +147,9 @@ def test_language_specific_model_is_recorded_and_cached(tmp_path):
         language = entry["sourceLanguage"]
         assert entry["model"] == f"fixture-{language}-en"
         assert entry["modelRevision"] == f"revision-{language}"
-        assert cache.get(entry["original"], language, entry["model"], entry["modelRevision"]) == entry["english"]
+        assert entry["qualityRevision"] == "quality-v2"
+        from collector.translations import cache_revision
+        assert cache.get(entry["original"], language, entry["model"], cache_revision(entry["modelRevision"])) == entry["english"]
     cache.close()
 
 

@@ -53,3 +53,9 @@ export function readRecording(value: unknown): Recording {
   }
   return d;
 }
+export async function readRecordingResponse(response: Response, url: string): Promise<Recording> {
+  if (!url.endsWith('.json.gz')) return readRecording(await response.json());
+  if (typeof DecompressionStream === 'undefined' || !response.body) throw new Error('This browser cannot open the compressed recording.');
+  const decoded = response.body.pipeThrough(new DecompressionStream('gzip'));
+  return readRecording(await new Response(decoded).json());
+}

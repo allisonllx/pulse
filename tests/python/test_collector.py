@@ -170,6 +170,16 @@ def test_publish_contract_immutable_and_no_private_fields(store,tmp_path):
     assert set(data)=={"schemaVersion","mode","generatedAt","clusterVersion","countries","windows","snapshots"}
     assert data["snapshots"][0]["topics"][0]["score"]==1
 
+def test_publish_gzips_large_recordings_without_changing_the_json_payload(store,tmp_path,monkeypatch):
+    import importlib
+    publication=importlib.import_module('collector.publish')
+    recording={"schemaVersion":1,"mode":"recording","generatedAt":W,"clusterVersion":"v1","countries":[],"windows":[],"snapshots":[{"coverage":[],"padding":"x"*(21*1024*1024)}]}
+    monkeypatch.setattr(publication,'build_recording',lambda *args,**kwargs:recording)
+    manifest=publication.publish(store,tmp_path/'large')
+    assert manifest['recordingUrl'].endswith('.json.gz')
+    path=tmp_path/'large'/manifest['datasetVersion']/'recording.json.gz'
+    assert json.loads(gzip.decompress(path.read_bytes()))==recording
+
 
 def test_topics_stable_corrections_and_collisions(store):
     items = save(store,job())

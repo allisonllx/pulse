@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
 import unicodedata
 import uuid
 from dataclasses import replace
@@ -42,11 +43,23 @@ def normalize_countries(values):
     return list(dict.fromkeys(values))
 
 
-def cache_key(keyword, countries, concept_id=None):
+QUERY_LANGUAGES = {'en','de','es','fr','hi','id','ja','ko','pt','sv','zh'}
+
+
+def normalize_query_language(language='en'):
+    if not isinstance(language, str) or language not in QUERY_LANGUAGES:
+        raise ValueError('Choose a supported search language.')
+    return language
+
+
+def cache_key(keyword, countries, concept_id=None, query_language='en'):
+    query_language = normalize_query_language(query_language)
     if concept_id:
         concept = get_concept(concept_id)
-        return hashlib.sha256(canonical([concept['version'], concept_id, concept['aliases'], sorted(countries)])).hexdigest()[:24]
-    return hashlib.sha256(canonical([SCAN_VERSION, normalize_keyword(keyword).casefold(), sorted(countries)])).hexdigest()[:24]
+        return hashlib.sha256(canonical([concept['version'], concept_id, concept['aliases'], sorted(countries), query_language])).hexdigest()[:24]
+    parts = [SCAN_VERSION, normalize_keyword(keyword).casefold(), sorted(countries)]
+    if query_language != 'en':parts.append(query_language)
+    return hashlib.sha256(canonical(parts)).hexdigest()[:24]
 
 
 def phrase(keyword):
@@ -54,21 +67,23 @@ def phrase(keyword):
     return '"' + keyword.replace('"', ' ').replace('\\', ' ') + '"'
 
 
-def plan_scan(keyword, countries, scan_id, observed_at=None):
+def plan_scan(keyword, countries, scan_id, observed_at=None, query_language='en'):
     keyword = normalize_keyword(keyword)
     countries = normalize_countries(countries)
+    query_language = normalize_query_language(query_language)
     timestamp = observed_at or utcnow()
     jobs = []
     queries = [('web', phrase(keyword))] + [(platform, 'site:' + domains[0] + ' ' + phrase(keyword)) for platform, domains in SOCIAL_DOMAINS.items()]
     for country in countries:
+        profile = 'english' if query_language == 'en' else 'local'
         for channel, query in queries:
             # No explicit Google country setting: the verified residential country varies.
-            url = 'https://www.google.com/search?' + urlencode({'q': query, 'hl': 'en', 'pws': '0', 'num': '20'})
-            jobs.append(Job(country, timestamp, 'english', 'google_search', 'scan_' + channel + '_' + scan_id, query, url, 'en'))
-        news = 'https://news.google.com/rss/search?' + urlencode({'q': phrase(keyword), 'hl': 'en', 'gl': country, 'ceid': country + ':en'})
-        jobs.append(Job(country, timestamp, 'english', 'google_news', 'scan_news', phrase(keyword), news, 'en'))
-        video = 'https://www.youtube.com/results?' + urlencode({'search_query': keyword, 'hl': 'en', 'gl': 'US', 'sp': 'CAMSAggD'})
-        jobs.append(Job(country, timestamp, 'english', 'youtube', 'scan_video', keyword, video, 'en'))
+            url = 'https://www.google.com/search?' + urlencode({'q': query, 'hl': query_language, 'pws': '0', 'num': '20'})
+            jobs.append(Job(country, timestamp, profile, 'google_search', 'scan_' + channel + '_' + scan_id, query, url, query_language))
+        news = 'https://news.google.com/rss/search?' + urlencode({'q': phrase(keyword), 'hl': query_language, 'gl': country, 'ceid': country + ':' + query_language})
+        jobs.append(Job(country, timestamp, profile, 'google_news', 'scan_news', phrase(keyword), news, query_language))
+        video = 'https://www.youtube.com/results?' + urlencode({'search_query': keyword, 'hl': query_language, 'gl': country if profile == 'local' else 'US', 'sp': 'CAMSAggD'})
+        jobs.append(Job(country, timestamp, profile, 'youtube', 'scan_video', keyword, video, query_language))
     return jobs
 
 
@@ -79,11 +94,26 @@ def plan_concept(concept, countries, scan_id, observed_at=None):
         for job in plan_scan(alias['term'], countries, scan_id, timestamp):
             if index == 0 or job.surface.split('_')[1] in {'web', 'news', 'video'}:
                 jobs.append(job)
+    # Market terms are intentionally additive and country-scoped. They are kept
+    # separate from the English control queries so comparisons stay like-for-like.
+    for country in countries:
+        language = COUNTRIES[country][2]
+        for term in concept.get('marketTerms', {}).get(country, []):
+            local_phrase = phrase(term)
+            news = 'https://news.google.com/rss/search?' + urlencode({
+                'q': local_phrase, 'hl': language, 'gl': country, 'ceid': country + ':' + language})
+            video = 'https://www.youtube.com/results?' + urlencode({
+                'search_query': term, 'hl': language, 'gl': country, 'sp': 'CAMSAggD'})
+            jobs.extend((
+                Job(country, timestamp, 'local', 'google_news', 'scan_news', local_phrase, news, language),
+                Job(country, timestamp, 'local', 'youtube', 'scan_video', local_phrase, video, language),
+            ))
     return jobs
 
 
 def fallback_job(job):
-    return replace(job, source='bing', url='https://www.bing.com/search?' + urlencode({'q': job.query, 'setlang': 'en-US'}))
+    locale = {'en':'en-US','de':'de-DE','es':'es-ES','fr':'fr-FR','hi':'hi-IN','id':'id-ID','ja':'ja-JP','ko':'ko-KR','pt':'pt-BR','sv':'sv-SE','zh':'zh-CN'}.get(job.language,'en-US')
+    return replace(job, source='bing', url='https://www.bing.com/search?' + urlencode({'q': job.query, 'setlang': locale}))
 
 
 def tokens(text):
@@ -120,36 +150,48 @@ class ScanManager:
         self.root.mkdir(parents=True, exist_ok=True)
         self.publication = Path(publication)
         self.adapter_factory = adapter_factory
+        self._translation_cache = None
+        self._translator = None
+        self._translation_lock = threading.Lock()
+
+    def translate(self, texts, language):
+        from .translations import LocalTranslator, TranslationCache, translate_texts
+        with self._translation_lock:
+            if self._translation_cache is None:
+                self._translation_cache = TranslationCache(self.settings.data_dir / 'scan-translations.sqlite')
+                self._translator = LocalTranslator()
+            return translate_texts(texts, language, self._translation_cache, self._translator)
 
     def read(self, scan_id):
         if not re.fullmatch(r'[a-f0-9]{24}', scan_id):raise ValueError('Invalid scan ID.')
         path = self.root / (scan_id + '.json')
         return json.loads(path.read_text()) if path.exists() else None
 
-    def cached(self, keyword, countries, concept_id=None):
-        key = cache_key(keyword, countries, concept_id)
+    def cached(self, keyword, countries, concept_id=None, query_language='en'):
+        key = cache_key(keyword, countries, concept_id, query_language)
         candidates = [json.loads(p.read_text()) for p in self.root.glob('*.json')]
         return max((s for s in candidates if s['key'] == key and s['status'] in {'complete','partial'}), key=lambda s: s['createdAt'], default=None)
 
-    def active(self, keyword, countries, concept_id=None):
-        key = cache_key(keyword, countries, concept_id)
+    def active(self, keyword, countries, concept_id=None, query_language='en'):
+        key = cache_key(keyword, countries, concept_id, query_language)
         return next((scan for path in self.root.glob('*.json')
                      if (scan := json.loads(path.read_text()))['key'] == key and scan['status'] in {'queued', 'running'}), None)
 
-    def create(self, keyword, countries, concept_id=None):
+    def create(self, keyword, countries, concept_id=None, query_language='en'):
         concept = get_concept(concept_id) if concept_id else None
         if concept:keyword = concept['label']
         keyword, countries = normalize_keyword(keyword), normalize_countries(countries)
+        query_language = 'en' if concept else normalize_query_language(query_language)
         self.settings.require_live()
         scan_id = uuid.uuid4().hex[:24]
-        jobs = plan_concept(concept, countries, scan_id) if concept else plan_scan(keyword, countries, scan_id)
+        jobs = plan_concept(concept, countries, scan_id) if concept else plan_scan(keyword, countries, scan_id, query_language=query_language)
         worst = sum(allocation_for(j) * (2 if j.source == 'google_search' else 1) for j in jobs)
         store = Store(self.settings.data_dir)
         try:
             if worst > budget_status(store, self.settings)['remainingBytes']:
                 raise ValueError('This scan exceeds the remaining traffic budget. Choose fewer countries.')
         finally:store.close()
-        scan = {'id': scan_id, 'key': cache_key(keyword, countries, concept_id), 'keyword': keyword,
+        scan = {'id': scan_id, 'key': cache_key(keyword, countries, concept_id, query_language), 'keyword': keyword, 'queryLanguage': query_language,
                 'countries': countries, 'createdAt': jobs[0].window, 'status': 'queued',
                 'planned': len(jobs), 'completed': 0, 'events': [], 'recording': None,
                 'version': SCAN_VERSION}
@@ -171,7 +213,7 @@ class ScanManager:
         if path.exists() and path.read_bytes()!=payload:raise ValueError('Immutable scan collision.')
         if not path.exists():atomic_write(path,payload)
         catalog = [s for s in self.catalog() if s['key'] != scan['key']]
-        catalog.insert(0, {k: scan[k] for k in ('id','key','keyword','countries','createdAt','status')})
+        catalog.insert(0, {k: scan[k] for k in ('id','key','keyword','countries','createdAt','status','queryLanguage') if k in scan})
         if scan.get('concept'):catalog[0]['conceptId'] = scan['concept']['id']
         atomic_write(self.publication / 'index.json', canonical(catalog[:24]))
 
@@ -182,7 +224,8 @@ class ScanManager:
         ids = set()
         successful = 0
         try:
-            jobs = plan_concept(scan['concept'], scan['countries'], scan_id, scan['createdAt']) if scan.get('concept') else plan_scan(scan['keyword'], scan['countries'], scan_id, scan['createdAt'])
+            query_language = scan.get('queryLanguage', 'en')
+            jobs = plan_concept(scan['concept'], scan['countries'], scan_id, scan['createdAt']) if scan.get('concept') else plan_scan(scan['keyword'], scan['countries'], scan_id, scan['createdAt'], query_language)
             scan['status'] = 'running'
             self.save(scan)
             last_request = 0.0
@@ -211,6 +254,7 @@ class ScanManager:
                     accepted = observation['status'] == 'success'
                     scan['events'].append({'country': candidate.country, 'source': candidate.source,
                                            'channel': candidate.surface.split('_')[1], 'query': candidate.query,
+                                           'profile': candidate.profile, 'language': candidate.language,
                                            'status': observation['status'], 'itemCount': len(items) if accepted else 0,
                                            'observedAt': result.get('observedAt', utcnow()),
                                            'error': result.get('error') if not accepted else None,

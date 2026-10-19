@@ -9,7 +9,7 @@ import ScanExplorer from './ScanExplorer';
 import SignalOverlap from './SignalOverlap';
 import { topicSignals } from '@/lib/signal-overlap';
 import { useTranslations } from '@/lib/translations';
-import { compareSnapshots, Country, dateLabel, filterTopics, Manifest, PLATFORMS, Profile, readRecording, Recording, safeUrl, snapshotAt, Source, success, Topic } from '@/lib/recording';
+import { compareSnapshots, Country, dateLabel, filterTopics, Manifest, PLATFORMS, Profile, readRecording, readRecordingResponse, Recording, safeUrl, snapshotAt, Source, success, Topic } from '@/lib/recording';
 import { visibleEvents } from '@/lib/visitors';
 const City = dynamic(() => import('./City'), { ssr: false, loading: () => <div className="city-loading"><LoaderCircle className="spin" /><span>Opening the city…</span></div> });
 class CityBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
@@ -56,12 +56,12 @@ export default function Worldview() {
         const response = await fetch(demoOverride ? '/data/demo-manifest.json' : '/data/manifest.json', { cache: 'no-store', signal: controller.signal });
         if (!response.ok) throw new Error('No published recording yet. Publish a snapshot from the local collector.');
         const manifest = await response.json() as Manifest;
-        if (manifest.schemaVersion !== 1 || typeof manifest.recordingUrl !== 'string' || !/^\/data\/[a-zA-Z0-9_./-]+\.json$/.test(manifest.recordingUrl) || manifest.recordingUrl.includes('..')) throw new Error('Invalid published manifest.');
+        if (manifest.schemaVersion !== 1 || typeof manifest.recordingUrl !== 'string' || !/^\/data\/[a-zA-Z0-9_./-]+\.json(?:\.gz)?$/.test(manifest.recordingUrl) || manifest.recordingUrl.includes('..')) throw new Error('Invalid published manifest.');
         const key = `${demoOverride}:${manifest.datasetVersion}`;
         if (version.current === key) return;
         const dataResponse = await fetch(manifest.recordingUrl, { cache: 'no-store', signal: controller.signal });
         if (!dataResponse.ok) throw new Error('The recording is temporarily unavailable. The previous view is preserved.');
-        const data = readRecording(await dataResponse.json());
+        const data = await readRecordingResponse(dataResponse, manifest.recordingUrl);
         if (active) {
           const prior = recordingRef.current; recordingRef.current=data;
           version.current = key; setRecording(data); setError(''); setUpdated(n=>n+1);

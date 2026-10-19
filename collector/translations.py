@@ -20,15 +20,43 @@ REVISION = "worldview-language-models-1"
 # The smaller mul-en model produced misleading JA/HI and European headlines.
 ROMANCE_MODEL = ("Helsinki-NLP/opus-mt-ROMANCE-en", "e9ca9975e3972afd80732f08ce01d3a1339f47f8")
 LANGUAGE_MODELS = {"fr": ROMANCE_MODEL, "es": ROMANCE_MODEL, "pt": ROMANCE_MODEL,
-                   "de": ("Helsinki-NLP/opus-mt-de-en", "1a922f3b32a8e809e17a47d4b32142d8105924e5")}
+                   "de": ("Helsinki-NLP/opus-mt-de-en", "1a922f3b32a8e809e17a47d4b32142d8105924e5"),
+                   "ja": ("Helsinki-NLP/opus-mt-ja-en", "0770961a39ba6bd66305b149c3f4110bcafca2e6"),
+                   "ko": ("Helsinki-NLP/opus-mt-ko-en", "e42d1f41b66194e6d10512f8a27bebc1f4f5097e"),
+                   "hi": ("Helsinki-NLP/opus-mt-hi-en", "a7d96a16729f812578bd55e7366147beda625d86"),
+                   "id": ("Helsinki-NLP/opus-mt-id-en", "9a7f1b0d0dfe0a92ba691030b01d6f23f966e7ec"),
+                   "sv": ("Helsinki-NLP/opus-mt-sv-en", "202cf6240046bd8b6d08c207ee751ffd630d7ba8"),
+                   "zh": ("Helsinki-NLP/opus-mt-zh-en", "cf109095479db38d6df799875e34039d4938aaa6")}
 SUPPORTED_LANGUAGES = frozenset(LANGUAGE_MODELS)
+QUALITY_REVISION = "quality-v2"
+
+
+def validate_translation(original, english, language):
+    """Reject conspicuously malformed output before it can reach the cache or UI."""
+    import re
+
+    value = english.strip()
+    if re.search(r"\s{3,}", value):
+        raise ValueError("The local model could not produce a reliable English translation; the original headline is unchanged.")
+    if language == "ja":
+        identifiers = [token for token in re.findall(r"[A-Za-z][A-Za-z0-9+#.-]*", original)
+                       if any(char.isdigit() for char in token)
+                       or sum(char.isupper() for char in token) > 1]
+        lowered = value.casefold()
+        if any(token.casefold() not in lowered for token in identifiers):
+            raise ValueError("The local model could not preserve product names in a reliable English translation; the original headline is unchanged.")
+    return value
+
+
+def cache_revision(revision):
+    return f"{revision}:{QUALITY_REVISION}"
 
 
 class TranslationCache:
     def __init__(self, path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(path, timeout=30)
+        self.db = sqlite3.connect(path, timeout=30, check_same_thread=False)
         self.db.execute("""CREATE TABLE IF NOT EXISTS translations (
             original TEXT NOT NULL, source_language TEXT NOT NULL,
             model TEXT NOT NULL, revision TEXT NOT NULL, english TEXT NOT NULL,
@@ -97,6 +125,34 @@ class LocalTranslator:
         return self._tokenizer.batch_decode(generated, skip_special_tokens=True)
 
 
+def translate_texts(texts, language, cache, translator=None):
+    """Translate a small on-demand batch while retaining exact source text."""
+    if not isinstance(texts, list) or not 1 <= len(texts) <= 20:
+        raise ValueError("Translate between 1 and 20 result titles at a time.")
+    if any(not isinstance(text, str) or not text.strip() or len(text) > 500 for text in texts):
+        raise ValueError("Each title must contain 1 to 500 characters.")
+    language = str(language).lower().split("-")[0]
+    translator = translator or LocalTranslator()
+    if language not in translator.supported_languages:
+        raise ValueError("Local translation is not available for this language.")
+    model, revision = translator.provenance(language) if hasattr(translator, "provenance") else (translator.model, translator.revision)
+    cache_rev = cache_revision(revision)
+    unique = list(dict.fromkeys(texts))
+    translated = {text: cache.get(text, language, model, cache_rev) for text in unique}
+    pending = [text for text in unique if translated[text] is None]
+    if pending:
+        outputs = translator.translate(pending, language)
+        if not isinstance(outputs, list) or len(outputs) != len(pending) or any(not isinstance(value, str) or not value.strip() for value in outputs):
+            raise ValueError("Translation did not return every title; original text preserved.")
+        checked = [validate_translation(original, english, language) for original, english in zip(pending, outputs)]
+        for original, english in zip(pending, checked):
+            cache.put(original, language, english, model, cache_rev)
+            translated[original] = english
+    return [{"original": text, "english": translated[text], "language": language,
+             "model": model, "modelRevision": revision, "qualityRevision": QUALITY_REVISION,
+             "status": "translated"} for text in texts]
+
+
 def recording_texts(recording):
     """Return exact display text with its recorded language, without mutation."""
     countries = {c["code"]: c.get("language", "und") for c in recording.get("countries", [])}
@@ -137,7 +193,7 @@ def build_translations(recording, cache, translator=None, batch_size=8, progress
             unsupported.add(language)
             continue
         model, revision = translator.provenance(language) if hasattr(translator, "provenance") else (translator.model, translator.revision)
-        english = cache.get(original, language, model, revision)
+        english = cache.get(original, language, model, cache_revision(revision))
         if english is None:
             pending.setdefault(language, []).append(original)
         else:
@@ -153,18 +209,22 @@ def build_translations(recording, cache, translator=None, batch_size=8, progress
                 outputs = translator.translate(batch, language)
                 if len(outputs) != len(batch) or any(not isinstance(x, str) or not x.strip() for x in outputs):
                     raise ValueError("Invalid model output")
+                outputs = [validate_translation(original, english, language)
+                           for original, english in zip(batch, outputs)]
             except Exception:
                 failures.extend({"original": text, "sourceLanguage": language, "status": "failed"} for text in batch)
                 continue
+            cache_rev = cache_revision(revision)
             for original, english in zip(batch, outputs):
-                cache.put(original, language, english, model, revision)
-                entries[(original, language)] = (english.strip(), model, revision)
+                cache.put(original, language, english, model, cache_rev)
+                entries[(original, language)] = (english, model, revision)
             if progress:
                 progress(language, min(offset + len(batch), len(texts)), len(texts))
     result = {"schemaVersion": 1, "targetLanguage": "en", "model": translator.model,
               "modelRevision": translator.revision, "translationKind": "local-machine-translation",
               "entries": [{"original": original, "sourceLanguage": language, "english": english,
-                           "status": "translated", "model": model, "modelRevision": revision}
+                           "status": "translated", "model": model, "modelRevision": revision,
+                           "qualityRevision": QUALITY_REVISION}
                           for (original, language), (english, model, revision) in sorted(entries.items())],
               "unsupportedLanguages": sorted(unsupported)}
     if failures:

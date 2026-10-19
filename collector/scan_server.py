@@ -10,7 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .scans import DEFAULT_COUNTRIES, ScanManager, normalize_countries, normalize_keyword
+from .scans import DEFAULT_COUNTRIES, ScanManager, normalize_countries, normalize_keyword, normalize_query_language
 from .settings import Settings
 from .concepts import get_concept, CONCEPT_COUNTRIES
 
@@ -63,29 +63,40 @@ def make_handler(manager, executor, gate, directory='out', port=8787):
             return super().do_GET()
 
         def do_POST(self):
-            if urlsplit(self.path).path != '/api/scans':return self.respond(404, {'error': 'Not found.'})
+            path = urlsplit(self.path).path
+            if path not in {'/api/scans', '/api/translate'}:return self.respond(404, {'error': 'Not found.'})
             if not self.allowed():return self.respond(403, {'error': 'Origin is not permitted.'})
             if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
                 return self.respond(415, {'error': 'Use application/json.'})
             try:
                 length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 2048:raise ValueError('Invalid request size.')
+                limit = 12_000 if path == '/api/translate' else 2048
+                if not 0 < length <= limit:raise ValueError('Invalid request size.')
                 payload = json.loads(self.rfile.read(length))
                 if not isinstance(payload, dict):raise ValueError('Invalid request.')
+                if path == '/api/translate':
+                    result = manager.translate(payload.get('texts'), payload.get('language'))
+                    return self.respond(200, {'translations': result})
                 concept_id = payload.get('conceptId')
                 concept = get_concept(concept_id) if concept_id is not None else None
                 keyword = concept['label'] if concept else normalize_keyword(payload.get('keyword'))
                 countries = normalize_countries(payload.get('countries', CONCEPT_COUNTRIES if concept else DEFAULT_COUNTRIES))
+                query_language = 'en' if concept else normalize_query_language(payload.get('queryLanguage', 'en'))
                 refresh = payload.get('refresh', False)
                 if type(refresh) is not bool:raise ValueError('Invalid refresh option.')
-            except (ValueError, TypeError):return self.respond(400, {'error': 'Enter a keyword and choose up to eight supported countries.'})
-            active = manager.active(keyword, countries, concept_id)
+            except (ValueError, TypeError) as error:
+                if path == '/api/translate':return self.respond(422, {'error': str(error)})
+                return self.respond(400, {'error': 'Enter a keyword and choose up to eight supported countries.'})
+            except Exception:
+                if path == '/api/translate':return self.respond(503, {'error': 'Local translation is unavailable. Original headlines remain available.'})
+                return self.respond(503, {'error': 'The local collector is unavailable.'})
+            active = manager.active(keyword, countries, concept_id, query_language)
             if active:return self.respond(202, {'scan': active, 'cached': False})
-            cached = manager.cached(keyword, countries, concept_id)
+            cached = manager.cached(keyword, countries, concept_id, query_language)
             if cached and not refresh:return self.respond(200, {'scan': cached, 'cached': True})
             if not gate.acquire(blocking=False):return self.respond(409, {'error': 'A scan is already running. Wait for it to finish.'})
             try:
-                scan = manager.create(keyword, countries, concept_id)
+                scan = manager.create(keyword, countries, concept_id, query_language)
                 def run():
                     try:manager.run(scan['id'])
                     finally:gate.release()

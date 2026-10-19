@@ -31,6 +31,20 @@ def test_queries_are_literal_fixed_and_geography_is_explicit():
     with pytest.raises(ValueError):plan_scan('foo', ['ZZ'], 'abc')
 
 
+def test_explicit_query_language_applies_across_sources_and_changes_cache_identity():
+    from collector.scans import cache_key
+    jobs = plan_scan('新作ゲーム', ['JP','US'], 'abc', query_language='ja')
+    assert len(jobs) == 14
+    assert {j.language for j in jobs} == {'ja'}
+    assert {j.profile for j in jobs} == {'local'}
+    news = next(j for j in jobs if j.source == 'google_news')
+    video = next(j for j in jobs if j.source == 'youtube')
+    assert 'hl=ja' in news.url and 'ceid=JP%3Aja' in news.url
+    assert 'hl=ja' in video.url and 'gl=JP' in video.url
+    assert cache_key('新作ゲーム',['JP','US']) != cache_key('新作ゲーム',['JP','US'],query_language='ja')
+    with pytest.raises(ValueError):plan_scan('foo', ['JP'], 'abc', query_language='xx')
+
+
 def test_social_domain_and_keyword_gate_preserves_search_rank_and_evidence():
     j = next(j for j in plan_scan('Claude Code', ['SG'], 'abc') if '_instagram_' in j.surface)
     html = b'''<div class="g"><a href="https://evilinstagram.com/p/a"><h3>Claude Code</h3></a></div>
@@ -99,6 +113,7 @@ def test_admission_uses_existing_spend_and_preserves_reserve(tmp_path):
 
 def test_api_origin_gate_validation_and_cached_scan_without_credentials(tmp_path):
     manager = ScanManager(Settings(tmp_path), tmp_path/'published')
+    manager.translate = lambda texts, language: [{'original': texts[0], 'english': 'Fixture English', 'language': language}]
     saved = {'id':'a'*24,'key':cache_key('Claude Code',['SG']),'keyword':'Claude Code','countries':['SG'],'createdAt':'2026-10-05T00:00:00Z','status':'complete','events':[],'recording':None}
     manager.save(saved)
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -110,6 +125,8 @@ def test_api_origin_gate_validation_and_cached_scan_without_credentials(tmp_path
         base = f'http://127.0.0.1:{port}'
         try:
             assert httpx.post(base+'/api/scans', json={'keyword':'Claude Code','countries':['SG']}).json()['cached'] is True
+            translated = httpx.post(base+'/api/translate', json={'language':'ja','texts':['新作ゲーム']})
+            assert translated.status_code == 200 and translated.json()['translations'][0]['english'] == 'Fixture English'
             assert httpx.post(base+'/api/scans', json={'keyword':'foo'}, headers={'Origin':'https://evil.example'}).status_code == 403
             assert httpx.post(base+'/api/scans', content='foo').status_code == 415
             assert httpx.post(base+'/api/scans', json={'keyword':'foo','countries':['ZZ']}).status_code == 400
@@ -133,6 +150,19 @@ def test_concept_plan_is_bounded_and_identical_across_markets():
     chinese = next(j for j in jobs if j.query == '"珍珠奶茶"')
     assert discovery_evidence(chinese, '喜欢珍珠奶茶的朋友', 'https://example.org', '')['relevance'] == 1
     with pytest.raises(ValueError):get_concept('unknown')
+
+
+def test_local_market_terms_are_targeted_and_separate_from_english_controls():
+    from collector.concepts import get_concept
+    from collector.scans import plan_concept
+    concept = get_concept('bubble-tea')
+    jobs = plan_concept(concept, ['US','JP','KR'], 'abc', '2026-10-05T00:00:00Z')
+    local = [j for j in jobs if j.profile == 'local']
+    assert {(j.country, j.query, j.language) for j in local} == {
+        ('JP', '"タピオカ"', 'ja'), ('JP', '"バブルティー"', 'ja'), ('KR', '"버블티"', 'ko')}
+    assert all(j.source in {'google_news','youtube'} for j in local)
+    assert all('hl=ja' in j.url or 'hl=ko' in j.url for j in local)
+    assert not any(j.country == 'US' and j.profile == 'local' for j in jobs)
 
 
 def test_concept_snapshot_and_cache_keep_bundle_identity(tmp_path):

@@ -1,10 +1,12 @@
 from __future__ import annotations
 from collections import defaultdict
-import hashlib, json, os, tempfile
+import gzip, hashlib, json, os, tempfile
 from pathlib import Path
 from .settings import COUNTRIES
 from .topics import TopicEngine,category
 from .jobs import utcnow
+
+COMPRESS_RECORDING_THRESHOLD = 20 * 1024 * 1024
 
 
 def canonical(data):
@@ -101,7 +103,14 @@ def publish(store,destination,corrections=None,embeddings=False):
     recording_path = root/version/"recording.json"
     if recording_path.exists() and recording_path.read_bytes()!=payload: raise ValueError("Immutable recording collision")
     if not recording_path.exists(): atomic_write(recording_path,payload)
+    recording_url = "/data/"+version+"/recording.json"
+    if len(payload) > COMPRESS_RECORDING_THRESHOLD:
+        compressed_path = root/version/"recording.json.gz"
+        compressed_payload = gzip.compress(payload,mtime=0)
+        if compressed_path.exists() and compressed_path.read_bytes()!=compressed_payload: raise ValueError("Immutable compressed recording collision")
+        if not compressed_path.exists(): atomic_write(compressed_path,compressed_payload)
+        recording_url += ".gz"
     coverage = [c for s in recording["snapshots"] for c in s["coverage"]]
-    manifest = {"schemaVersion":1,"datasetVersion":version,"generatedAt":recording["generatedAt"],"mode":"recording","recordingUrl":"/data/"+version+"/recording.json","countries":[c["code"] for c in recording["countries"]],"windows":recording["windows"],"coverage":{"successful":sum(c["status"]=="success" for c in coverage),"failed":sum(c["status"]!="success" for c in coverage)},"clusterVersion":recording["clusterVersion"]}
+    manifest = {"schemaVersion":1,"datasetVersion":version,"generatedAt":recording["generatedAt"],"mode":"recording","recordingUrl":recording_url,"countries":[c["code"] for c in recording["countries"]],"windows":recording["windows"],"coverage":{"successful":sum(c["status"]=="success" for c in coverage),"failed":sum(c["status"]!="success" for c in coverage)},"clusterVersion":recording["clusterVersion"]}
     atomic_write(root/"manifest.json",canonical(manifest))
     return manifest

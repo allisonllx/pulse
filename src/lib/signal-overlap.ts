@@ -6,12 +6,14 @@ export type VisualSignal = { id:string; label:string; url?:string; present:strin
 /** Match exact result identity. Missing collection is never an exclusive result. */
 export function scanSignals(scan:Scan,channel='all'):VisualSignal[] {
   const snapshots=scan.recording?.snapshots??[];
-  const coverage=new Map(scan.countries.map(c=>[c,new Set(snapshots.filter(s=>s.country===c).flatMap(s=>s.coverage.filter(v=>success(v.status)).map(coverageKey)))]));
+  const profileByObservation=new Map(snapshots.flatMap(s=>s.coverage.map(c=>[c.observationId,s.profile] as const)));
+  const profileKey=(profile:string|undefined,value:Parameters<typeof coverageKey>[0])=>`${profile??'english'}|${coverageKey(value)}`;
+  const coverage=new Map(scan.countries.map(c=>[c,new Set(snapshots.filter(s=>s.country===c).flatMap(s=>s.coverage.filter(v=>success(v.status)).map(v=>profileKey(s.profile,v))))]));
   const grouped=new Map<string,{item:Item;present:Set<string>;keys:Set<string>;ranks:Record<string,number>}>();
   for(const item of scanItems(scan)) {
     if(channel!=='all'&&item.discovery?.platform!==channel)continue;
     const group=grouped.get(item.id)??{item,present:new Set<string>(),keys:new Set<string>(),ranks:{}};
-    group.present.add(item.country);group.keys.add(coverageKey(item));
+    group.present.add(item.country);group.keys.add(profileKey(profileByObservation.get(item.observationId),item));
     group.ranks[item.country]=Math.min(group.ranks[item.country]??Infinity,item.rank);
     grouped.set(item.id,group);
   }
