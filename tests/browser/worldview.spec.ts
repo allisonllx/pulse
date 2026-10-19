@@ -84,13 +84,8 @@ test('shop focus has a clear exit and trends keep a topic across country navigat
  expect(errors).toEqual([]);
 });
 
-test('French translations preserve originals and the recorded Cornell query is explorable',async({page})=>{
+test('French translations preserve originals',async({page})=>{
  await page.unroute('**/data/manifest.json');await page.goto('/explore');
- await page.getByRole('button',{name:'Trends view',exact:true}).click();
- await page.getByRole('button',{name:'Tracked query: cornell 7',exact:true}).click();
- await expect(page.locator('.topic-journey h4').first()).toHaveText('Tracked query: cornell 7');
- await page.locator('.journey-scroll').getByRole('button',{name:'United States'}).click();
- await expect(page.locator('.topic-journey h4').first()).toHaveText('Tracked query: cornell 7');
  await page.locator('#country').selectOption('FR');
  // The newest live snapshot may contain only English-titled videos. Pin the
  // historical French news frame so this exercises translation, not feed timing.

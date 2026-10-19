@@ -1,7 +1,7 @@
 import { coverageKey, Profile, Recording, Snapshot, Source, success, Topic } from './recording';
 
 const keysFor = (s:Snapshot|undefined,source:Source|'all') => new Set(s?.coverage.filter(c=>success(c.status)&&(source==='all'||source===c.source)).map(coverageKey)??[]);
-const appearances = (s:Snapshot,keys:Set<string>,id?:string) => s.topics.filter(t=>!id||id.startsWith('watch:')||t.id===id).flatMap(t=>t.items.filter(i=>keys.has(coverageKey(i))&&(!id?.startsWith('watch:')||i.surface==='watch_rss'&&i.query===id.slice(6)&&(id.slice(6)!=='cornell 7'||/cornell|コーネル|कॉर्नेल|코넬|康奈[尔爾]/iu.test(i.title)))));
+const appearances = (s:Snapshot,keys:Set<string>,id?:string) => s.topics.filter(t=>!id||id.startsWith('watch:')||t.id===id).flatMap(t=>t.items.filter(i=>keys.has(coverageKey(i))&&(!id?.startsWith('watch:')||i.surface==='watch_rss'&&i.query===id.slice(6))));
 export function rankedTrends(current:Snapshot|undefined,previous:Snapshot|undefined,source:Source|'all'='all',ai=false) {
   if(!current)return [];
   const currentKeys=keysFor(current,source),priorKeys=keysFor(previous,source);

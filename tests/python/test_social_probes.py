@@ -32,9 +32,9 @@ def test_youtube_gaming_grids_preserve_shelf_and_sample_order():
 
 def test_exact_watch_phrase_is_a_distinct_rss_surface():
  from collector.jobs import plan_watches
- jobs=plan_watches(['SG','JP'],['cornell 7'],W)
- assert len(jobs)==2 and all(j.surface=='watch_rss' and j.query=='cornell 7' for j in jobs)
- assert 'q=%22cornell+7%22' in jobs[0].url
+ jobs=plan_watches(['SG','JP'],['sample topic'],W)
+ assert len(jobs)==2 and all(j.surface=='watch_rss' and j.query=='sample topic' for j in jobs)
+ assert 'q=%22sample+topic%22' in jobs[0].url
 
 def test_translation_refresh_failure_does_not_abort_collection(store,monkeypatch):
  import collector.translations as translation

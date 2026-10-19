@@ -30,15 +30,15 @@ describe('observed topic analysis',()=>{
   expect(journey.detections.some(r=>r.country.code==='US')).toBe(false);
   expect(journey.rows.find(r=>r.country.code==='US')!.cells[0].count).toBeNull();
  });
- it('keeps watch query series distinct and rejects unrelated query matches',()=>{
+ it('keeps arbitrary watch query series distinct from topic clusters',()=>{
   const base=sample('SG',0),item=base.topics[0].items[0];
-  const s:Snapshot={...base,coverage:[{...base.coverage[0],surface:'watch_rss',query:'cornell 7',itemCount:2}],topics:[{...base.topics[0],id:'a',items:[{...item,surface:'watch_rss',query:'cornell 7',title:'Cornell case coverage'},{...item,id:'noise',surface:'watch_rss',query:'cornell 7',title:'Unrelated gaming headline'}]}]};
+  const s:Snapshot={...base,coverage:[{...base.coverage[0],surface:'watch_rss',query:'sample topic',itemCount:2}],topics:[{...base.topics[0],id:'a',items:[{...item,surface:'watch_rss',query:'sample topic',title:'Sample topic coverage'},{...item,id:'noise',surface:'watch_rss',query:'sample topic',title:'Another sampled result'}]}]};
   const d:Recording={...data,snapshots:[s],windows:[s.window]};
-  expect(knownTopics(d,'local','all',s.window).some(t=>t.id==='watch:cornell 7')).toBe(true);
-  expect(topicJourney(d,'watch:cornell 7','local','all',s,s.window).rows.find(r=>r.country.code==='SG')!.cells[0].count).toBe(1);
+  expect(knownTopics(d,'local','all',s.window).some(t=>t.id==='watch:sample topic')).toBe(true);
+  expect(topicJourney(d,'watch:sample topic','local','all',s,s.window).rows.find(r=>r.country.code==='SG')!.cells[0].count).toBe(2);
  });
  it('finds recorded topics beyond the selected country without inventing matches',()=>{
   expect(knownTopics(data,'local','all',data.windows[0]).some(t=>t.id==='local-jp')).toBe(true);
-  expect(knownTopics(data,'local','all',data.windows[0]).some(t=>t.label==='Cornell7')).toBe(false);
+  expect(knownTopics(data,'local','all',data.windows[0]).some(t=>t.label==='Unrecorded example')).toBe(false);
  });
 });

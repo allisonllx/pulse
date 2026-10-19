@@ -1,4 +1,6 @@
-# Worldview collector
+# Pulse collector
+
+The October 2026 recording is complete and the original subscription has expired. See the [current project status](../README.md) and [recording operations runbook](../docs/recording-operations.md). Collection examples below describe the reusable tooling and historical setup; source availability and coverage are not guaranteed. No watch keyword is enabled by default.
 
 ## Optional local English translations
 

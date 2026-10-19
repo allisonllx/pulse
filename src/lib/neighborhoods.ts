@@ -26,7 +26,7 @@ export function districtFor(topic: Pick<Topic, 'category' | 'label'>): DistrictI
   if (/\b(technology|software|coding|iphone|android|developer|chip|computing)\b/.test(label)) return 'technology';
   if (/\b(football|soccer|cricket|tennis|basketball|nba|sport|goals?|match highlights)\b/.test(label)) return 'sports';
   if (/\b(film|movie|actor|bachelor|nobel|literature)\b/.test(label)) return 'culture';
-  if (/\b(election|president|parliament|minister|trump|bolsonaro|lula|ukraine|war|attack|police|storm|charged|government|court|vote|gaza|israel|rape|assault|arrest|accused|criminal|murder|fires?|jail|haze|lawsuit|scandal|cornell|pm wong)\b/.test(label)) return 'news';
+  if (/\b(election|president|parliament|minister|trump|bolsonaro|lula|ukraine|war|attack|police|storm|charged|government|court|vote|gaza|israel|rape|assault|arrest|accused|criminal|murder|fires?|jail|haze|lawsuit|scandal|pm wong)\b/.test(label)) return 'news';
   return 'other';
 }
 
@@ -38,7 +38,6 @@ const SHARED_TERMS: [string, RegExp][] = [
   ['Bolsonaro', /\bbolsonaro\b/i], ['Lula', /\blula\b/i],
   ['Trump', /\btrump\b/i], ['Ukraine', /\bukrain(e|ian)\b/i],
   ['Gaza', /\bgaza\b/i], ['Elections', /\b(elections?|voting|ballot|runoff)\b/i],
-  ['Cornell', /\bcornell\b/i],
   ['Nobel prizes', /\bnobel\b/i], ['Football', /\b(football|soccer)\b/i],
   ['Nintendo', /\bnintendo\b/i], ['PlayStation', /\bplaystation\b/i],
 ];

@@ -2,85 +2,67 @@
 
 **The internet, from everywhere.**
 
-A recording of public internet surfaces from different countries, explored as cozy 3D cities. Topics are storefronts; result appearances are little customers. The public app runs independently of the local collector.
+Explore public internet surfaces across countries through cozy 3D cities, geographic keyword scans, and weekly briefings. Topics become storefronts; sampled result appearances become visitors.
 
-## Open the city
+## Current status
+
+The geographic recording is complete and available as a dated archive. The current dataset contains **45 recorded windows across October 5–17, 2026**, covering **15 countries** with unequal source coverage and visible collection gaps. The Oxylabs recording subscription expired on October 18; saved recordings and scans work without the collector or proxy subscription.
+
+- **Recording explorer:** country and profile selection, topic neighborhoods, shop spotlight, evidence links, country comparisons, timeline replay, an AI lens, and observed topic trends.
+- **Keyword and concept scans:** saved geographic explorations, exact-link overlap, coverage-aware comparisons, local-language query settings, and curated cross-market concept bundles. New collection requires an available local scan service and valid proxy configuration.
+- **Translations:** a precomputed English display layer for supported archive languages, plus optional local translation of scan headlines. Original text remains available.
+- **Weekly briefings:** published All and Tech editions at `/briefings`. This is a separate evidence layer from the geographic recording; it is not an automatic continuation of the proxy experiment.
+
+Public site: [Pulse](https://worldview-internet-city.allisonlixuan.chatgpt.site/). Its existing URL retains the earlier project name.
+
+## Run locally
+
+Requires Node.js/npm for the frontend and Python 3.12 for the optional collector and scan service.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open http://localhost:3000. Choose a country and observation profile, inspect a shop, compare another country, or scrub the timeline. Click a shop or topic to focus it: other shops dim and a warm spotlight appears. Clear shop focus restores the full city. The Trends button opens rank-weighted cluster prominence, comparable-sample change, country/time matrices, and observed detection cohorts. Shared and distinctive comparison topics are clickable. The **AI lens** filters technology/model topics. Mobile and WebGL-unavailable browsers get a list view. Reduced motion shows customers without animation.
+Open [localhost:3000](http://localhost:3000). The home page provides discovery and scan entry points; `/explore` opens the recording and `/briefings` opens weekly editions. Saved data needs no proxy credentials. The separately labeled synthetic demo is available for illustration.
 
-The checked-in demonstration is visibly synthetic. `public/data/demo-manifest.json` always opens that separate recording; `public/data/manifest.json` points to the published dataset. Live collection never fabricates missing observations. A newly published real recording replaces the default demonstration, with a button to explore the demo separately.
+To serve a static build:
 
-## Collect real observations
+```sh
+npm run build
+npm start
+```
+
+For the optional local scan and translation service:
 
 ```sh
 python3 -m venv .venv-collector
-.venv-collector/bin/python -m pip install -e '.[test,browser,embeddings]'
-.venv-collector/bin/python -m playwright install chromium
-cp .env.example .env.local
-```
-
-Fill in your residential proxy credentials, project traffic cap, and exact expiry in `.env.local`. Keep this file private. The current project cap is **5,000,000,000 bytes** with **1,000,000,000 reserved**. The configured stop date is conservatively the start of **October 18, 2026, Singapore time**; change it to your provider's exact expiry if needed.
-
-```sh
-# No traffic: inspect admission limits and jobs.
-.venv-collector/bin/python -m collector collect --once --dry-run
-# A bounded first-country pilot.
-.venv-collector/bin/python -m collector collect --once --countries SG --sources google_news,youtube --adapter http
-# Validated panel: 15 local News countries, six English YouTube countries.
-.venv-collector/bin/python -m collector run --panel config/recording-panel.json --adapter http --windows 44 --publish-output public/data --embeddings
-# An optional browser feasibility probe, not a full unsupported harvest.
-.venv-collector/bin/python -m collector collect --once --countries SG --sources google_search --queries 'AI agents' --adapter playwright --retry-failed
-.venv-collector/bin/python -m collector status
-```
-
-For the detachable local worker (stops automatically at the configured expiry or budget cap):
-
-```sh
-python3 scripts/record-worker.py start
-python3 scripts/record-worker.py status
-python3 scripts/record-worker.py stop
-```
-
-Collection windows start at 00:00, 06:00, 12:00, and 18:00 UTC (08:00, 14:00, 20:00, 02:00 SGT). The worker stops after its bounded windows, on expiry, or when budget admission fails. Restarting never backfills an old time window with a new page. Missed jobs remain visible gaps.
-
-English translations for French, Spanish, Portuguese and German are precomputed with pinned local models. The language toggle preserves originals alongside translated evidence; other languages retain their original text. Translation failures preserve the recording and never stop harvesting. The watcher polls translation updates separately.
-
-The validated worker also collects local YouTube Gaming discovery where available and tracks the exact phrase **cornell 7** using `config/watch-topics.json` in the six-country panel. Gaming ranks mean sampled order within public shelves, not a global popularity ranking. Cornell series exclude query noise without Cornell named in the title. Queries are a separate signal from semantic topic clusters.
-
-Local news uses a **regional Google News RSS surface**, explicitly identified as `local_rss`; it does not claim to reproduce a personalized homepage. `--news-surface local_html` enables the public page experiment. The historical English search baseline uses five fixed queries: AI agents, AI coding tools, latest AI models, music, gaming. Google/YouTube region settings remain US, with English language, while the proxy country changes. India defaults to Hindi, Malaysia to Malay for local profiles; these are selected views, not a claim to represent every local language.
-
-Source reliability is determined by real probes. The initial TikTok browser filter blocked ttwstatic.com scripts; a corrected probe rendered Page not available. Instagram public keyword search yielded no extractable posts. A Creative Center probe failed transport and is inconclusive. These experiments do not establish that those platforms are impossible to collect. Residential credentials do not imply access to Oxylabs Web Scraper API or Browser products. A fixed-US-edition News feed probe across SG/US overlapped18 of20results; this is exploratory, not evidence of an IP effect. Google Search/TikTok can remain blocked; failures are preserved. The automatic adapter tries HTTP before bounded browser fallback for compatible failures. `--adapter http` is suitable for the validated, cheaper core. Promotion requires consecutive successful collection windows; a single pilot is not enough.
-
-## Analyze, publish, and preserve
-
-```sh
-.venv-collector/bin/python -m collector reextract
-.venv-collector/bin/python -m collector summarize --embeddings
-.venv-collector/bin/python -m collector publish --embeddings --output public/data
+.venv-collector/bin/python -m pip install -e '.[test,browser,embeddings,translations]'
 npm run build
-npm start
-.venv-collector/bin/python -m collector export artifacts/worldview-evidence.zip
-.venv-collector/bin/python -m collector --data-dir .worldview-restored restore artifacts/worldview-evidence.zip
+npm run scan:serve
 ```
 
-`publish` creates immutable JSON and atomically switches the manifest. **Deploy the new static build after publishing** to update a hosted site; writing local JSON alone does not update the public URL. Browsers check their published manifest every minute and follow the newest frame when already viewing the latest; historical selections remain fixed. The local worker never exposes your computer/database to the public.
+Open [127.0.0.1:8787](http://127.0.0.1:8787). New scans require valid credentials, an unexpired subscription, and spendable traffic under the configured cap in ignored `.env.local`; starting the service does not renew these. See the [scan runbook](docs/live-scans.md) for query languages, translation models, source behavior, and API configuration.
 
-Next.js produces portable static output in `out/`, compatible with Vercel or Sites. The current Sites project is defined in `.openai/hosting.json`; ask Codex to republish that same site after updating observations. Vercel alternative: authenticate the Vercel CLI, then `npx vercel deploy --prod`. No credentials or raw evidence belong in either deployment.
+## What the recording measures
 
-The multilingual encoder is `paraphrase-multilingual-MiniLM-L12-v2`; its model revision and correction configuration influence the cluster version. Use `config/topic-corrections.json` for reviewed merges/splits. Without `--embeddings`, the engine uses a conservative token/glossary fallback, explicitly reported by the CLI. Neither the 50-case regression corpus nor the initial recording is a population-wide attention study.
+Google News regional RSS feeds supply broad local news. YouTube supplies sampled search and gaming discovery, with coverage varying by country and date. Later search queries rotate sports, music, film/TV, gaming, culture, science/technology, and public affairs alongside AI anchors. Local-language and English-control observations stay separately labeled.
 
-## Meaning and limits
+Google Search and direct social discovery were not reliable enough for the recurring panel. Bing's historical baseline was quarantined after irrelevant responses. On-demand scans support indexed social queries, but working TikTok, Instagram, X, and Reddit discovery is not established across countries. See [source feasibility](docs/source-feasibility.md) and [query methodology](docs/search-discovery.md).
 
-- One appearance is one result within a successful source/surface/query observation. Current results are customers; actual change events animate arrivals and departures. Failed windows never invent departures.
-- Country overlap compares only shared successful surfaces in the same profile and time window. Missing evidence is unavailable, not zero attention.
-- Animation interpolates sample events; it does not measure real users, model-provider requests, or precise real-world arrival times.
-- The archive preserves raw evidence, SQLite, Parquet, and checksums. Restore validates inventory, paths, hashes, and database integrity before installing into an empty directory.
-- Proxy-dependent history stays dated after expiry. Future API data must use a separately labeled layer.
+One visitor represents one sampled result appearance, not a person or regional audience count. Shop size reflects sampled prominence; arrivals and departures require comparable successful observations. Failed or missed samples create gaps. Topic matching is conservative and can miss multilingual equivalence; exact-link overlap and topic-cluster overlap answer different questions.
+
+Country/time views show first detection **within this recording**. Collection order does not establish where a story originated or how it spread. The city displays a bounded subset of topics; use List view to inspect all topics in a selected snapshot. Mobile, reduced-motion, and WebGL fallback views are supported.
+
+## Data, publishing, and preservation
+
+The frontend reads versioned files under `public/data/`. Its manifest points to an immutable recording; saved scans, translations, and briefings have separate indexes. Collection state, raw responses, credentials, and archive exports remain outside Git and public deployment.
+
+The final evidence export includes SQLite, compressed raw responses, Parquet tables, and checksums. Restoration into an empty directory and equivalent publication were verified. Export files live locally under ignored `artifacts/`; a Git clone contains published normalized data, not the private raw archive.
+
+Publishing local JSON does not update the hosted site. Build and redeploy to the **existing** Sites project in `.openai/hosting.json`. The site works independently of the collection machine.
+
+See the [recording operations runbook](docs/recording-operations.md) for collection, optional watchlists, analysis, publishing, and archive commands.
 
 ## Verify
 
@@ -92,23 +74,12 @@ npm run test:e2e
 npm run build
 ```
 
-See [collector guide](collector/README.md), [public contract](docs/data-contract.md), and [implementation ledger](docs/implementation.md). The eleven-day archive and expiry-day final harvest require the local worker to run over time; implementing the software does not manufacture that history.
+## Documentation
 
-
-City shops now sit in colored, labeled topic neighborhoods. Smaller shared-subject clouds organize related shops without merging topic memberships. The fixed country/profile topic universe determines replay positions. Source coverage across countries and the current view's source context expose English controls rather than implying News is the entire recording.
-
-The panel initially added Bing's public HTML searches in all fifteen countries (identical English settings, no explicit market parameter), YouTube English discovery in Germany, France and Mexico, and local Gaming discovery in Mexico, Germany and France. Germany/France/UK Gaming uses a normal browser rejecting consent in the displayed language. `queries` narrows expansion panels; explicit panel `adapter` overrides the global adapter. Historical control observations remain intact; future YouTube queries use the revision below. These additions start when actually collected; earlier windows retain gaps. See [source feasibility](docs/source-feasibility.md) for diagnosed TikTok, Instagram and Reddit failures, remaining candidates and the limits of proxy/IP inference.
-
-
-### Recent-update search revision
-The prior YouTube English discovery revision used `querySet: discovery-v1`: a 12-query catalog, two recurring tech anchors and three globally coordinated rotating queries per six-hour window. Expansion DE/FR/MX retains two anchor slots. It replaces future generic YouTube controls while retaining their original historical samples. Requests use the site's verified This week + Popularity filter (`sp=CAMSAggD`), with `surface=discovery_week_popular`; this describes upload freshness and platform ranking, not origin country or causal spread. Missing rotating-query samples are gaps, not disappearances. Upload-age and displayed platform-wide view strings are preserved in result snippets and shown in evidence. These view labels are separate from sampled prominence and are not converted into regional audience counts or growth rates.
-
-The expanded Bing pilot was rejected after manual relevance review: site-limited queries returned unrelated domains and broader phrases returned unrelated dictionary/login/homepage results. Its raw evidence is retained with failed/reviewed relevance status; these samples do not supply city topics. The Bing baseline was subsequently quarantined, as described below. X posts and repository traction are therefore not advertised as collected signals. Full catalog and query/metadata rules: [collector/discovery.py](collector/discovery.py).
-
-Bing baseline quarantine (October 5): mismatched responses included Amy Taylor LinkedIn profiles for gaming and cancer-treatment papers for AI coding tools. Bing is excluded from the recurring panel and normalized city/trend data pending relevance diagnosis. Raw evidence and the pre-quarantine archive remain preserved; failed coverage does not generate departures. See docs/search-discovery.md.
-
-The current balanced `broad-v2` catalog rotates sports, music, film/TV, gaming, culture, science/technology and public affairs. Main English panels keep three broad slots and two AI anchors; DE/FR/MX sample two broad slots. SG/JP/BR additionally collect three local-profile broad queries. Country pairing, week/popularity filters, original-language evidence and missing-sample handling remain explicit. See [search discovery](docs/search-discovery.md) for the full phrase catalog and pilot findings.
-
-### On-demand geographic keyword scans
-
-Run `npm run scan:serve` to collect live keyword scans locally, with indexed social queries, visible progress, country comparisons and saved snapshots. See [the live scan runbook](docs/live-scans.md) for startup, evidence interpretation and verified source limitations.
+- [Geographic scans and local translations](docs/live-scans.md)
+- [Recording operations and preservation](docs/recording-operations.md)
+- [Collector internals and budget accounting](collector/README.md)
+- [Search queries and revisions](docs/search-discovery.md)
+- [Source feasibility and limitations](docs/source-feasibility.md)
+- [Public data contract](docs/data-contract.md)
+- [Weekly briefing design](docs/superpowers/specs/2026-10-17-weekly-pulse-design.md)
