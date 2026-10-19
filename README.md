@@ -1,4 +1,6 @@
-# Worldview
+# Pulse
+
+**The internet, from everywhere.**
 
 A recording of public internet surfaces from different countries, explored as cozy 3D cities. Topics are storefronts; result appearances are little customers. The public app runs independently of the local collector.
 
